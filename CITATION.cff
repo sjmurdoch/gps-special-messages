@@ -1,0 +1,41 @@
+cff-version: 1.2.0
+title: "gps-special-messages: pipeline, analysis, figures, and verifiers for the GPS L1 C/A Subframe 4 Page 17 corpus, 2007–2026"
+abstract: >
+  Code, data pipeline, analysis scripts, article figures, and claim-level
+  verifiers accompanying Murdoch (2026), "The Empty Field That Wasn't:
+  GPS, OTAD, and Two Decades of Encrypted Broadcasts" (Inside GNSS,
+  May/June 2026). Reproduces 12,163,006 special-message observations
+  across 3,994 unique payloads from the GFZ Potsdam navigation-bit
+  archive, 2007-06-19 to 2026-01-23.
+authors:
+  - family-names: Murdoch
+    given-names: Steven J.
+    email: sjmurdoch@gmail.com
+type: software
+license: Apache-2.0
+repository-code: "https://github.com/sjmurdoch/gps-special-messages"
+url: "https://github.com/sjmurdoch/gps-special-messages"
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.20073223
+    description: "Zenodo deposit (software + data artefacts)"
+keywords:
+  - GPS
+  - LNAV
+  - special-messages
+  - subframe-4
+  - OTAD
+  - over-the-air-distribution
+  - encrypted-broadcast
+  - reproducibility
+preferred-citation:
+  type: article
+  title: "The Empty Field That Wasn't: GPS, OTAD, and Two Decades of Encrypted Broadcasts"
+  authors:
+    - family-names: Murdoch
+      given-names: Steven J.
+      email: sjmurdoch@gmail.com
+  journal: "Inside GNSS"
+  year: 2026
+  month: 5
+  notes: "Magazine code IGM_MJ26_XX-XX_Tech_Subframe; May/June 2026 issue"
