@@ -6,7 +6,7 @@ This repository's pipeline consumes two upstream archives plus produces a derive
 
 All three artefacts live on the project's Zenodo deposit:
 
-**Zenodo deposit DOI: <https://doi.org/10.5281/zenodo.20073223>**
+**Zenodo deposit DOI: <https://doi.org/10.5281/zenodo.20073222>**
 
 The release source tarball is auto-archived by GitHub→Zenodo when a release tag is pushed. The three large data artefacts below are uploaded manually to the same deposit so they share one DOI.
 

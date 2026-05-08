@@ -70,7 +70,3 @@ These are computed once by `analysis/run_all.sh` and committed under `analysis/r
 ## Interpretive / authorial claims (no verifier; flagged in the article)
 
 `[^3]`, `[^9]`, `[^14]`, `[^15]`, `[^18]`, `[^20]`, `[^30]`, `[^46]`, `[^47]` — see article footnotes for the source of each. These are interpretive readings or author's notes, not numeric assertions.
-
-## Open follow-ups
-
-- **PPM-D verification**: `verify/shared_substrings.jl` confirms each named substring via SQL `LIKE` but doesn't re-run the PPM-D model, so a *new* shared substring at length ≥ 7 would slip past. Cost is ~5 min CPU; deferred for now.

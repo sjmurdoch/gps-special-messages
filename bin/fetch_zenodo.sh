@@ -2,7 +2,7 @@
 # Fetch the data artefacts from the project's Zenodo deposit and verify SHA-256
 # checksums.
 #
-# DOI: https://doi.org/10.5281/zenodo.20073223
+# DOI: https://doi.org/10.5281/zenodo.20073222
 #
 # Available artefacts (set in the table below; SHA-256 values are filled in
 # at release time and live in DATA.md):
@@ -19,14 +19,51 @@
 #   bin/fetch_zenodo.sh nanu              # extracts to data/ops_advisories/
 #
 # Environment:
-#   ZENODO_BASE  override base URL (default: https://zenodo.org/records/20073223/files)
+#   ZENODO_CONCEPT_RECID  Zenodo concept (parent) record ID. Stable across
+#                         releases. Resolved to the latest version via the
+#                         DOI redirect on each invocation.
+#                         Default: 20073222
+#   ZENODO_RECORD_ID      Pin to a specific version's record ID, skipping
+#                         latest-version resolution. Useful for verifying
+#                         an old tag against the data it shipped with.
+#   ZENODO_BASE           Override the full files base URL outright (e.g.
+#                         to point at a local mirror). Bypasses both vars
+#                         above.
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-ZENODO_BASE="${ZENODO_BASE:-https://zenodo.org/records/20073223/files}"
+ZENODO_CONCEPT_RECID="${ZENODO_CONCEPT_RECID:-20073222}"
+
+resolve_zenodo_base() {
+    if [[ -n "${ZENODO_BASE:-}" ]]; then
+        echo "$ZENODO_BASE"
+        return
+    fi
+
+    local record_id
+    if [[ -n "${ZENODO_RECORD_ID:-}" ]]; then
+        record_id="$ZENODO_RECORD_ID"
+        echo "==> Using pinned record ID ${record_id}" >&2
+    else
+        echo "==> Resolving concept ${ZENODO_CONCEPT_RECID} to latest version" >&2
+        local resolved
+        resolved="$(curl -sL --fail -o /dev/null -w '%{url_effective}' \
+            "https://zenodo.org/doi/10.5281/zenodo.${ZENODO_CONCEPT_RECID}")" \
+            || { echo "Failed to resolve concept DOI 10.5281/zenodo.${ZENODO_CONCEPT_RECID}" >&2; exit 3; }
+        resolved="${resolved%/}"
+        record_id="${resolved##*/}"
+        if ! [[ "$record_id" =~ ^[0-9]+$ ]]; then
+            echo "Could not parse record ID from resolved URL: $resolved" >&2
+            exit 3
+        fi
+        echo "    latest version is record ${record_id}" >&2
+    fi
+
+    echo "https://zenodo.org/records/${record_id}/files"
+}
 
 # ── Manifest ────────────────────────────────────────────────────────────────
 # Format: name|filename|sha256|destination|extract-cmd
@@ -53,6 +90,8 @@ row="$(manifest | awk -F'|' -v key="$target" '$1 == key {print; exit}')"
 [[ -n "$row" ]] || { echo "Unknown artefact: $target" >&2; usage; }
 
 IFS='|' read -r name file sha256 dest cmd <<< "$row"
+
+ZENODO_BASE="$(resolve_zenodo_base)"
 
 mkdir -p "$(dirname "$dest")"
 download="$(mktemp -t fetch_zenodo.XXXXXX)"

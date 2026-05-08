@@ -1,4 +1,4 @@
-# gps-special-messages
+# The Empty Field That Wasn’t: GPS, OTAD and Two Decades of Encrypted Broadcasts
 
 Code, data pipeline, analysis, figures, and claim-level verifiers for **"The Empty Field That Wasn't: GPS, OTAD, and Two Decades of Encrypted Broadcasts"** by Steven J. Murdoch (*Inside GNSS*, May/June 2026).
 
@@ -32,7 +32,7 @@ data/       arrow_test/ committed; everything else fetched from Zenodo
 
 ## Citing this work
 
-Cite the article (see [CITATION.cff](CITATION.cff)). The software and dataset are archived at <https://doi.org/10.5281/zenodo.20073223>.
+Cite the article (see [CITATION.cff](CITATION.cff)). The software and dataset are archived at <https://doi.org/10.5281/zenodo.20073222>.
 
 ## Further reading
 

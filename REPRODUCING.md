@@ -57,7 +57,7 @@ PNGs are 300 dpi; visually compare against the committed copies in `figures/outp
 
 ## Full path
 
-A complete rebuild from raw GFZ navigation bits and NAVCEN Operational Advisories:
+A complete rebuild from raw GFZ navigation bits and NAVCEN Operational Advisories. The manual stage-by-stage sequence is shown first; for a one-command unattended run that captures progress markers and resumes from the last failed stage, see [Unattended rebuild with `bin/full_build.sh`](#unattended-rebuild-with-binfull_buildsh) below.
 
 ```bash
 git clone https://github.com/sjmurdoch/gps-special-messages
@@ -100,6 +100,53 @@ verify/run_all.sh
 | `05_download_ops_advisories` | (URLs) | `data/ops_advisories/` | skip if `bin/fetch_zenodo.sh nanu` already ran |
 
 `analysis/run_all.sh` is idempotent — its first step deletes the analysis-table contents in foreign-key-safe order, then repopulates. Re-running against an already-populated `messages.duckdb` works.
+
+### Unattended rebuild with `bin/full_build.sh`
+
+`bin/full_build.sh` runs all seven stages of the full path (extract navbits → extract NANU → decompress → arrow → db → analysis → verify) end-to-end with one command, in a hermetic work directory outside the repo. It is resumable across restarts, writes per-stage markers and logs, and is the wrapper the migration plan's full-path gate was validated against on the production corpus (~11h 20m wall, 12,163,006 rows / 3,994 unique / 7-of-7 verifiers).
+
+**Prerequisite — stage the raw archives.** Download both files from the [Zenodo deposit](https://doi.org/10.5281/zenodo.20073222) into `$ARCHIVE_DIR` (default: a sibling directory `../gps-special-messages-release/` next to the repo) under their original filenames:
+
+- `gps-navbits-2026-01-26.tar.xz`
+- `nanu-archive-2026-02-26.tar.xz`
+
+`bin/fetch_zenodo.sh` is *not* a substitute here: it streams the archive into the repo's `data/` and discards the tarball, whereas `full_build.sh` re-extracts the archive into its own work directory.
+
+**Run it:**
+
+```bash
+nohup bin/full_build.sh > /dev/null 2>&1 &       # fire-and-forget, ~hours
+echo "$!" > /tmp/full_build.pid
+```
+
+**Other modes:**
+
+```bash
+bin/full_build.sh --dry-run      # validate prereqs, print the plan, do nothing
+bin/full_build.sh --smoke        # tiny end-to-end on data/arrow_test fixtures (~1 min)
+bin/full_build.sh --restart      # wipe markers + work dir; rebuild from scratch
+```
+
+**While it is running:**
+
+```bash
+cat ../gps-special-messages-fullbuild/_build/STATUS.md      # current stage table
+tail -f ../gps-special-messages-fullbuild/_build/full.log   # live timestamped log
+kill -0 $(cat /tmp/full_build.pid)                          # process alive check
+```
+
+**When it finishes**, `_build/RESULTS.md` summarises stage outcomes and the headline invariants. Per-stage logs are at `_build/logs/<id>.log`; per-stage markers (with measured invariants such as row counts) at `_build/markers/<id>.done`. Re-running after a failure skips stages whose markers already exist — only the failing stage and onwards re-execute.
+
+**Environment overrides:**
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `WORK_DIR` | `../gps-special-messages-fullbuild` | hermetic work directory; intermediate data + logs land here |
+| `ARCHIVE_DIR` | `../gps-special-messages-release` | where the two staged archives live |
+| `REPO_DIR` | dirname of this script's parent | target repo root |
+| `JULIA` | `julia` on `$PATH` | override the Julia binary |
+| `THREADS` | `auto` | passed to `julia -t` |
+| `OA_SOURCE_DIR` | `../gps-message/data/ops_advisories` | symlink target for ops_advisories in `--smoke` mode |
 
 ## Disk footprint
 

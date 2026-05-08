@@ -17,11 +17,6 @@
 # It also makes pre-2011 and post-2022 look similar (3.4 d vs 3.3 d) when
 # the chart shows them visibly distinct (~3.8 d vs ~4.3 d).
 #
-# The article paragraph 133's "2.3 d for 2007–2008" comes from a hardcoded
-# prose row in `analysis/otad_hypothesis.jl`, not from a computation, and
-# is not reproducible from the DB by any documented metric. This verifier
-# does not assert it.
-#
 # Usage:
 #   julia --project verify/rotation_regimes.jl [data/messages.duckdb]
 

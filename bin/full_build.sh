@@ -20,11 +20,12 @@
 #   cat _build/RESULTS.md            # final report (only after run completes)
 #
 # Environment overrides:
-#   WORK_DIR     working directory (default: /Users/smurdoch/w/gps-special-messages-fullbuild)
-#   ARCHIVE_DIR  staged tarballs    (default: /Users/smurdoch/w/gps-special-messages-release)
-#   REPO_DIR     target repo        (default: dirname of this script's parent)
-#   JULIA        julia binary       (default: /Users/smurdoch/.juliaup/bin/julia)
-#   THREADS      thread count       (default: auto)
+#   WORK_DIR       working directory  (default: ../gps-special-messages-fullbuild next to the repo)
+#   ARCHIVE_DIR    staged tarballs    (default: ../gps-special-messages-release next to the repo)
+#   REPO_DIR       target repo        (default: dirname of this script's parent)
+#   JULIA          julia binary       (default: `julia` on $PATH)
+#   THREADS        thread count       (default: auto)
+#   OA_SOURCE_DIR  ops_advisories dir for smoke mode symlink (default: ../gps-message/data/ops_advisories)
 #
 # The script is resumable: each stage writes a marker file under
 # $WORK_DIR/_build/markers/. Re-running skips stages whose markers already exist.
@@ -35,10 +36,11 @@ set -uo pipefail   # -e disabled so we can capture and log per-stage failures
 
 REPO_DIR_DEFAULT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO_DIR="${REPO_DIR:-$REPO_DIR_DEFAULT}"
+PARENT_OF_REPO="$(cd "$REPO_DIR/.." && pwd)"
 if [[ -n "${WORK_DIR:-}" ]]; then WORK_DIR_EXPLICIT=1; fi
-WORK_DIR="${WORK_DIR:-/Users/smurdoch/w/gps-special-messages-fullbuild}"
-ARCHIVE_DIR="${ARCHIVE_DIR:-/Users/smurdoch/w/gps-special-messages-release}"
-JULIA="${JULIA:-/Users/smurdoch/.juliaup/bin/julia}"
+WORK_DIR="${WORK_DIR:-$PARENT_OF_REPO/gps-special-messages-fullbuild}"
+ARCHIVE_DIR="${ARCHIVE_DIR:-$PARENT_OF_REPO/gps-special-messages-release}"
+JULIA="${JULIA:-julia}"
 THREADS="${THREADS:-auto}"
 
 NAVBITS_ARCHIVE="$ARCHIVE_DIR/gps-navbits-2026-01-26.tar.xz"
@@ -51,7 +53,7 @@ for arg in "$@"; do
         --dry-run)  MODE="dry-run" ;;
         --smoke)    MODE="smoke" ;;
         --restart)  RESTART=1 ;;
-        --help|-h)  sed -n '2,32p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --help|-h)  sed -n '2,31p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *)          echo "unknown arg: $arg" >&2; exit 2 ;;
     esac
 done
@@ -299,9 +301,11 @@ stage_02_extract_nanu() {
         log "stage $id already done; skipping"; return 0
     fi
     if [[ "$MODE" == "smoke" ]]; then
-        # In smoke mode, symlink to source repo's ops_advisories so analysis can run
-        if [[ -d /Users/smurdoch/w/gps-message/data/ops_advisories ]]; then
-            ln -sfn /Users/smurdoch/w/gps-message/data/ops_advisories "$DATA_DIR/ops_advisories"
+        # In smoke mode, symlink to source repo's ops_advisories so analysis can run.
+        # Honour OA_SOURCE_DIR if set, otherwise look for a sibling gps-message checkout.
+        local oa_src="${OA_SOURCE_DIR:-$PARENT_OF_REPO/gps-message/data/ops_advisories}"
+        if [[ -d "$oa_src" ]]; then
+            ln -sfn "$oa_src" "$DATA_DIR/ops_advisories"
         fi
         write_marker "$id" "skipped=true" "skipped_reason=smoke-mode (symlinked)"
         log "stage $id: skipped (smoke; ops_advisories symlinked from source)"
@@ -416,10 +420,11 @@ stage_06_analysis() {
         return 0
     fi
     cd "$WORK_DIR"
-    # analysis/run_all.sh hardcodes data/messages.duckdb relative paths;
-    # we pass DB path via env that each script's DEFAULT_DB respects.
-    run_stage "$id" env DUCKDB_PATH="$DATA_DIR/messages.duckdb" \
-        bash "$REPO_DIR/analysis/run_all.sh" "$DATA_DIR/messages.duckdb" || return $?
+    # analysis/run_all.sh treats its first positional as REPO_ROOT and reads
+    # DB / OA_DIR from env. Pass paths via env; do not pass a positional, or
+    # the script will try to `cd` into the .duckdb file.
+    run_stage "$id" env DB="$DATA_DIR/messages.duckdb" OA_DIR="$DATA_DIR/ops_advisories" \
+        bash "$REPO_DIR/analysis/run_all.sh" || return $?
     cd - >/dev/null
     write_marker "$id" "started_at=$STAGE_STARTED_AT" "duration_seconds=$STAGE_DURATION"
 }
@@ -438,7 +443,10 @@ stage_07_verify() {
         return 0
     fi
     cd "$WORK_DIR"
-    run_stage "$id" bash "$REPO_DIR/verify/run_all.sh" "$DATA_DIR/messages.duckdb" || return $?
+    # Same calling convention as analysis/run_all.sh: positional is REPO_ROOT,
+    # DB path comes from env.
+    run_stage "$id" env DB="$DATA_DIR/messages.duckdb" \
+        bash "$REPO_DIR/verify/run_all.sh" || return $?
     cd - >/dev/null
     write_marker "$id" "started_at=$STAGE_STARTED_AT" "duration_seconds=$STAGE_DURATION"
 }
