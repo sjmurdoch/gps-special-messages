@@ -3,8 +3,6 @@
 #
 # Goal: rebuild data/messages.duckdb from gps-navbits-2026-01-26.tar.xz +
 # nanu-archive-2026-02-26.tar.xz and confirm verify/run_all.sh exits 0.
-# This is the full-path counterpart to the fast path in REPRODUCING.md: it
-# confirms a from-raw rebuild reproduces the published invariants.
 #
 # Usage:
 #   bin/full_build.sh                # full real build (~hours, ~250 GB intermediate)
@@ -145,7 +143,6 @@ write_status() {
 
 **Goal**: rebuild \`data/messages.duckdb\` from \`gps-navbits-2026-01-26.tar.xz\` +
 \`nanu-archive-2026-02-26.tar.xz\` and confirm \`verify/run_all.sh\` exits 0.
-This confirms a full from-raw rebuild reproduces the published invariants.
 
 **Target invariants**: \`SELECT count(*) FROM special_messages\` returns \`12163006\`
 (unique = 3,994), 11 DuckDB tables populated, all 7 verifiers pass.
@@ -504,7 +501,7 @@ write_results() {
         else
             echo "## Verification"
             echo
-            echo "All stages completed successfully. The full from-raw rebuild reproduces the published invariants."
+            echo "All stages completed successfully."
             echo
             if [[ "$MODE" == "full" ]]; then
                 echo "DB: \`$DATA_DIR/messages.duckdb\` (rows = 12,163,006; unique = 3,994)."
