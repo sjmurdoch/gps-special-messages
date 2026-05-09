@@ -1,5 +1,7 @@
 # The Empty Field That Wasn’t: GPS, OTAD and Two Decades of Encrypted Broadcasts
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20073222.svg)](https://doi.org/10.5281/zenodo.20073222)
+    
 Code, data pipeline, analysis, figures, and claim-level verifiers for **"The Empty Field That Wasn't: GPS, OTAD, and Two Decades of Encrypted Broadcasts"** by Steven J. Murdoch (*Inside GNSS*, May/June 2026).
 
 The 22-byte "special message" field of GPS LNAV Subframe 4, Page 17 has been broadcast on every operational satellite for nineteen years. This repository extracts those messages from the GFZ Potsdam navigation-bit archive, builds a queryable DuckDB database (12,163,006 observations, 3,994 unique payloads, 2007-06-19 → 2026-01-23), and reproduces every quantitative claim and figure in the article.
