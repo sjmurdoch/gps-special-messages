@@ -6,20 +6,30 @@
 #
 # Usage:
 #   analysis/run_all.sh                  # default paths under data/
+#   analysis/run_all.sh /path/to/db.duckdb # explicit DB file
 #   analysis/run_all.sh /repo/root       # explicit repo root
 #
 # Environment:
 #   JULIA   override julia binary (default: `julia` on PATH)
-#   DB      override DB path (default: data/messages.duckdb)
+#   DB      override DB path (default: data/messages.duckdb); takes precedence
+#           over any positional argument.
 #   OA_DIR  override ops-advisory dir (default: data/ops_advisories)
 
 set -euo pipefail
 
-REPO_ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+# The positional argument may be either a repo root (directory) or a DB file.
+SCRIPT_REPO="$(cd "$(dirname "$0")/.." && pwd)"
+arg="${1:-}"
+if [[ -n "$arg" && -f "$arg" ]]; then
+    DB_ARG="$(cd "$(dirname "$arg")" && pwd)/$(basename "$arg")"
+    REPO_ROOT="$SCRIPT_REPO"
+else
+    REPO_ROOT="${arg:-$SCRIPT_REPO}"
+fi
 cd "$REPO_ROOT"
 
 JULIA="${JULIA:-julia}"
-DB="${DB:-data/messages.duckdb}"
+DB="${DB:-${DB_ARG:-data/messages.duckdb}}"
 OA_DIR="${OA_DIR:-data/ops_advisories}"
 REPORTS_DIR="analysis/reports"
 mkdir -p "$REPORTS_DIR"

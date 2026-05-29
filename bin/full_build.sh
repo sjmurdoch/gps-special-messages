@@ -3,7 +3,8 @@
 #
 # Goal: rebuild data/messages.duckdb from gps-navbits-2026-01-26.tar.xz +
 # nanu-archive-2026-02-26.tar.xz and confirm verify/run_all.sh exits 0.
-# Validates the migration plan's deferred §10.3 #7 gate.
+# This is the full-path counterpart to the fast path in REPRODUCING.md: it
+# confirms a from-raw rebuild reproduces the published invariants.
 #
 # Usage:
 #   bin/full_build.sh                # full real build (~hours, ~250 GB intermediate)
@@ -25,7 +26,7 @@
 #   REPO_DIR       target repo        (default: dirname of this script's parent)
 #   JULIA          julia binary       (default: `julia` on $PATH)
 #   THREADS        thread count       (default: auto)
-#   OA_SOURCE_DIR  ops_advisories dir for smoke mode symlink (default: ../gps-message/data/ops_advisories)
+#   OA_SOURCE_DIR  ops_advisories dir for smoke mode symlink (default: <repo>/data/ops_advisories)
 #
 # The script is resumable: each stage writes a marker file under
 # $WORK_DIR/_build/markers/. Re-running skips stages whose markers already exist.
@@ -144,7 +145,7 @@ write_status() {
 
 **Goal**: rebuild \`data/messages.duckdb\` from \`gps-navbits-2026-01-26.tar.xz\` +
 \`nanu-archive-2026-02-26.tar.xz\` and confirm \`verify/run_all.sh\` exits 0.
-This validates the migration plan's deferred §10.3 #7 gate (full-path rebuild).
+This confirms a full from-raw rebuild reproduces the published invariants.
 
 **Target invariants**: \`SELECT count(*) FROM special_messages\` returns \`12163006\`
 (unique = 3,994), 11 DuckDB tables populated, all 7 verifiers pass.
@@ -301,9 +302,10 @@ stage_02_extract_nanu() {
         log "stage $id already done; skipping"; return 0
     fi
     if [[ "$MODE" == "smoke" ]]; then
-        # In smoke mode, symlink to source repo's ops_advisories so analysis can run.
-        # Honour OA_SOURCE_DIR if set, otherwise look for a sibling gps-message checkout.
-        local oa_src="${OA_SOURCE_DIR:-$PARENT_OF_REPO/gps-message/data/ops_advisories}"
+        # In smoke mode, symlink ops_advisories so analysis can run.
+        # Honour OA_SOURCE_DIR if set, otherwise use the repo's own
+        # data/ops_advisories (populated by `bin/fetch_zenodo.sh nanu`).
+        local oa_src="${OA_SOURCE_DIR:-$REPO_DIR/data/ops_advisories}"
         if [[ -d "$oa_src" ]]; then
             ln -sfn "$oa_src" "$DATA_DIR/ops_advisories"
         fi
@@ -502,7 +504,7 @@ write_results() {
         else
             echo "## Verification"
             echo
-            echo "All stages completed successfully. The migration plan's deferred §10.3 #7 gate is met."
+            echo "All stages completed successfully. The full from-raw rebuild reproduces the published invariants."
             echo
             if [[ "$MODE" == "full" ]]; then
                 echo "DB: \`$DATA_DIR/messages.duckdb\` (rows = 12,163,006; unique = 3,994)."

@@ -74,9 +74,9 @@ is **not** verified (Cairo embeds timestamps; visual review only).
 
 1. New file `figures/figN_<name>.jl` (CairoMakie) or `.typ` (Typst).
 2. Output paths must be `joinpath(@__DIR__, "output", "...")`. Emit
-   both PNG and PDF; SVGs are rebuild-on-demand and gitignored.
+   PNG, PDF, and SVG.
 3. Add to `figures/build_all.sh`.
-4. Commit the rendered PNG + PDF outputs alongside the script.
+4. Commit the rendered PNG + PDF + SVG outputs alongside the script.
 5. CairoMakie embeds creation timestamps and font-cache ordering in PNG
    `tIME` chunks and PDF `/CreationDate` — repeated runs differ by
    ~25 bytes per output. Visually identical. Do not assert byte-equality.

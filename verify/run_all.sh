@@ -1,26 +1,38 @@
 #!/usr/bin/env bash
 # Run every claim-level verifier against data/messages.duckdb.
 #
-# Each verify/<name>.jl asserts a specific quantitative claim from
-# analysis_results/feature-article.md and exits non-zero with a
+# Each verify/<name>.jl asserts a specific quantitative claim from the
+# article (mapped to its verifier in CLAIMS.md) and exits non-zero with a
 # diagnostic on divergence.  This wrapper runs all of them, prints
 # a summary, and exits non-zero if any fail.
 #
 # Usage:
-#   verify/run_all.sh                    # default DB path
-#   verify/run_all.sh /path/to/repo      # explicit repo root
+#   verify/run_all.sh                    # default DB path (data/messages.duckdb)
+#   verify/run_all.sh /path/to/db.duckdb # explicit DB file
+#   verify/run_all.sh /path/to/repo      # explicit repo root (DB resolved under it)
 #
 # Environment:
 #   JULIA   override julia binary (default: `julia` on PATH)
-#   DB      override DB path (default: data/messages.duckdb)
+#   DB      override DB path (default: data/messages.duckdb); takes precedence
+#           over any positional argument.
 
 set -uo pipefail
 
-REPO_ROOT="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+# The positional argument may be either a repo root (directory) or a DB file.
+# Detect a file and treat it as the DB so that, e.g.,
+# `verify/run_all.sh data/messages.duckdb` does the obvious thing.
+SCRIPT_REPO="$(cd "$(dirname "$0")/.." && pwd)"
+arg="${1:-}"
+if [[ -n "$arg" && -f "$arg" ]]; then
+    DB_ARG="$(cd "$(dirname "$arg")" && pwd)/$(basename "$arg")"
+    REPO_ROOT="$SCRIPT_REPO"
+else
+    REPO_ROOT="${arg:-$SCRIPT_REPO}"
+fi
 cd "$REPO_ROOT"
 
 JULIA="${JULIA:-julia}"
-DB="${DB:-data/messages.duckdb}"
+DB="${DB:-${DB_ARG:-data/messages.duckdb}}"
 
 scripts=(
     corpus_totals

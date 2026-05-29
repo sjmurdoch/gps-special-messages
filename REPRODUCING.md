@@ -2,7 +2,7 @@
 
 Two paths through the repository, depending on what you want to reproduce.
 
-- **Fast path** — verify every quantitative claim against the published database. ~1.5 GB download, ~1 minute of compute.
+- **Fast path** — verify every quantitative claim against the published database. ~190 MB download, ~1 minute of compute.
 - **Full path** — rebuild the database from raw GFZ + NAVCEN archives, then verify. ~7 GB download, ~250 GB intermediate disk, hours of compute.
 
 Both paths end with `verify/run_all.sh` exiting 0.
@@ -31,7 +31,7 @@ git clone https://github.com/sjmurdoch/gps-special-messages
 cd gps-special-messages
 julia --project -e 'using Pkg; Pkg.instantiate()'
 
-# Download the pre-built DuckDB from Zenodo (~1.5 GB compressed → ~3 GB decompressed).
+# Download the pre-built DuckDB from Zenodo (~190 MB compressed → ~2.8 GB decompressed).
 # bin/fetch_zenodo.sh verifies SHA-256 against the manifest in DATA.md.
 bin/fetch_zenodo.sh messages.duckdb
 
@@ -103,7 +103,7 @@ verify/run_all.sh
 
 ### Unattended rebuild with `bin/full_build.sh`
 
-`bin/full_build.sh` runs all seven stages of the full path (extract navbits → extract NANU → decompress → arrow → db → analysis → verify) end-to-end with one command, in a hermetic work directory outside the repo. It is resumable across restarts, writes per-stage markers and logs, and is the wrapper the migration plan's full-path gate was validated against on the production corpus (~11h 20m wall, 12,163,006 rows / 3,994 unique / 7-of-7 verifiers).
+`bin/full_build.sh` runs all seven stages of the full path (extract navbits → extract NANU → decompress → arrow → db → analysis → verify) end-to-end with one command, in a hermetic work directory outside the repo. It is resumable across restarts and writes per-stage markers and logs. On the full corpus a complete run takes ~11h 20m wall and ends with 12,163,006 rows / 3,994 unique / 7-of-7 verifiers passing.
 
 **Prerequisite — stage the raw archives.** Download both files from the [Zenodo deposit](https://doi.org/10.5281/zenodo.20073222) into `$ARCHIVE_DIR` (default: a sibling directory `../gps-special-messages-release/` next to the repo) under their original filenames:
 
@@ -146,7 +146,7 @@ kill -0 $(cat /tmp/full_build.pid)                          # process alive chec
 | `REPO_DIR` | dirname of this script's parent | target repo root |
 | `JULIA` | `julia` on `$PATH` | override the Julia binary |
 | `THREADS` | `auto` | passed to `julia -t` |
-| `OA_SOURCE_DIR` | `../gps-message/data/ops_advisories` | symlink target for ops_advisories in `--smoke` mode |
+| `OA_SOURCE_DIR` | `<repo>/data/ops_advisories` | symlink target for ops_advisories in `--smoke` mode |
 
 ## Disk footprint
 
