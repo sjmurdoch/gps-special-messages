@@ -30,7 +30,7 @@ The Zenodo copy is a frozen mirror for reproducibility; cite the GFZ DOI for the
 
 ### `nanu-archive-2026-02-26.tar.xz`
 
-NAVCEN GPS Operational Advisory `.oa1` snapshot (~10–15 MB compressed) consumed by `analysis/nanu_correlation.jl` and `analysis/sentinel_nanu.jl`. Optional input to `pipeline/05_download_ops_advisories.jl` (which can also fetch live from NAVCEN if you want the most recent records).
+NAVCEN GPS Operational Advisory `.oa1` snapshot (~165 KB compressed → ~32 MB extracted) consumed by `analysis/nanu_correlation.jl` and `analysis/sentinel_nanu.jl`. Optional input to `pipeline/05_download_ops_advisories.jl` (which can also fetch live from NAVCEN if you want the most recent records).
 
 | Field | Value |
 |---|---|
@@ -44,7 +44,7 @@ NAVCEN GPS Operational Advisory `.oa1` snapshot (~10–15 MB compressed) consume
 
 ### `messages.duckdb.zst`
 
-Fully-built DuckDB (~1–1.5 GB compressed → ~3 GB decompressed) consumed by `analysis/`, `figures/`, `verify/`. Reproducible from the two upstream archives by running `pipeline/run_all.sh` then `analysis/run_all.sh`.
+Fully-built DuckDB (~190 MB compressed → ~2.8 GB decompressed) consumed by `analysis/`, `figures/`, `verify/`. Reproducible from the two upstream archives by running `pipeline/run_all.sh` then `analysis/run_all.sh`.
 
 | Field | Value |
 |---|---|
@@ -86,7 +86,7 @@ The article cites IS-GPS-200N (01 August 2022).
 
 ### ICD-GPS-240 (current revision)
 
-GPS interface control reference for the SAASM/Type-1 user equipment side. Available from the same NAVCEN page; included in our `analysis_results/` documentation as `ICD-GPS-240D.pdf`. Linked rather than redistributed in this repository.
+GPS interface control reference for the SAASM/Type-1 user equipment side. The article cites ICD-GPS-240D. Available from the same NAVCEN page; linked rather than redistributed in this repository.
 
 ### Walter et al. (2021) — September 2020 SVN 74 anomaly
 

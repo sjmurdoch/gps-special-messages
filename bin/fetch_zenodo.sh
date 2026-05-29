@@ -7,9 +7,9 @@
 # Available artefacts (set in the table below; SHA-256 values are filled in
 # at release time and live in DATA.md):
 #
-#   messages.duckdb     fully-built DuckDB (~1–1.5 GB compressed)
+#   messages.duckdb     fully-built DuckDB (~190 MB compressed → ~2.8 GB)
 #   navbits             frozen GFZ navbit snapshot (~7 GB)
-#   nanu                NAVCEN OA archive (~10–15 MB)
+#   nanu                NAVCEN OA archive (~165 KB compressed → ~32 MB)
 #
 # Usage:
 #   bin/fetch_zenodo.sh <artefact>

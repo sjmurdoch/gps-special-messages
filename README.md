@@ -6,13 +6,13 @@ The 22-byte "special message" field of GPS LNAV Subframe 4, Page 17 has been bro
 
 ## Quickstart
 
-Verify the article's claims against the published database (~1.5 GB download, ~1 minute of compute):
+Verify the article's claims against the published database (~190 MB download, ~2.8 GB on disk, ~1 minute of compute):
 
 ```bash
 git clone https://github.com/sjmurdoch/gps-special-messages
 cd gps-special-messages
 julia --project -e 'using Pkg; Pkg.instantiate()'
-bin/fetch_zenodo.sh messages.duckdb        # downloads ~1.5 GB, decompresses to ~3 GB
+bin/fetch_zenodo.sh messages.duckdb        # downloads ~190 MB, decompresses to ~2.8 GB
 verify/run_all.sh                          # exits 0 iff every claim reproduces
 ```
 
