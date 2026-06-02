@@ -1,6 +1,6 @@
 # Article claims and verifiers
 
-Every quantitative claim in [feature-article.md](https://github.com/sjmurdoch/gps-special-messages) (link TBC at publication) is mapped here to either a script under `verify/` (run via `verify/run_all.sh`) or to an external citation.
+Every quantitative claim in [The Empty Field That Wasn’t: GPS, OTAD and Two Decades of Encrypted Broadcasts](https://lsc-pagepro.mydigitalpublication.com/publication/?i=865273) is mapped here to either a script under `verify/` (run via `verify/run_all.sh`) or to an external citation.
 
 This file is the contract: a claim that isn't here either gets a verifier or gets cut.
 

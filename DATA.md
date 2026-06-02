@@ -70,7 +70,7 @@ The article and the documents it cites are not vendored in this repository. Use 
 
 ### The article
 
-Murdoch, S.J. (2026). "The Empty Field That Wasn't: GPS, OTAD, and Two Decades of Encrypted Broadcasts." *Inside GNSS*, May/June 2026 (magazine code `IGM_MJ26_XX-XX_Tech_Subframe`). Publisher page: <https://insidegnss.com/> (TBC at publication).
+Murdoch, S.J. (2026). "The Empty Field That Wasn't: GPS, OTAD, and Two Decades of Encrypted Broadcasts." *Inside GNSS*, May/June 2026. Publisher page: <https://insidegnss.com/>.
 
 ### Tyley 2015 OTAD briefing
 
