@@ -112,9 +112,20 @@ end
             @test row.sv_id == 55
             @test row.ascii_message == "TEST MESSAGE 22CHARS!"
             @test row.alert_flag == false
+            @test row.parity_ok == true
             @test row.year == 2024
             @test row.day_of_year == 1
             @test row.source_file == "test.arrow"
+
+            # A parity-failed message is stored with the flag preserved
+            msg_bad = create_test_message(datetime=DateTime(2024, 1, 1, 2, 0, 0),
+                                          raw_bytes=UInt8.(collect("GARBLED MESSAGE 22CHA")),
+                                          ascii_message="GARBLED MESSAGE 22CHA",
+                                          parity_ok=false)
+            insert_message!(db, msg_bad, meta, mult)
+            result = DBInterface.execute(db,
+                "SELECT parity_ok FROM special_messages WHERE datetime = '2024-01-01 02:00:00'")
+            @test first(result).parity_ok == false
         finally
             cleanup_test_db(db, db_path)
         end

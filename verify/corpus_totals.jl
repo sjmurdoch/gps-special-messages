@@ -1,6 +1,6 @@
 #!/usr/bin/env julia
 #
-# Verify corpus totals: 12,163,006 observations, 3,994 unique messages,
+# Verify corpus totals: 24,087,691 observations, 5,009 unique messages,
 # 32 PRNs, date range 2007-06-19 → 2026-01-23.
 #
 # Reference: feature-article.md §1, §2 (footnote 2).
@@ -34,8 +34,8 @@ row = DBInterface.execute(db, """
 
 DuckDB.close(db)
 
-check("total observations",   12_163_006,        Int(row.total))
-check("unique message hashes", 3_994,            Int(row.uniq))
+check("total observations",   24_087_691,        Int(row.total))
+check("unique message hashes", 5_009,            Int(row.uniq))
 check("PRNs",                  32,               Int(row.prns))
 check("first date",            Date(2007, 6, 19), Date(row.first))
 check("last date",             Date(2026, 1, 23), Date(row.last))

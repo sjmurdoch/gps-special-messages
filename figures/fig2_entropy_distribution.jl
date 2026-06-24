@@ -8,9 +8,6 @@
 #
 # Usage:
 #   julia --project plot_entropy_distribution.jl [analysis_output/out.txt] [messages.duckdb]
-#
-# Set HIGHLIGHT_TEXT=0 to render TEXT-prefixed messages with the same colour and
-# stroke as ordinary messages in the rug plot (default: highlight in green).
 
 include(joinpath(@__DIR__, "..", "src", "ppm_model.jl"))
 using .PPMEntropy
@@ -21,27 +18,15 @@ using Random
 
 const RANDOM_SMOOTHING = 1000
 const GPS_ALPHABET_SIZE = 45
-const HIGHLIGHT_TEXT = lowercase(get(ENV, "HIGHLIGHT_TEXT", "1")) ∉ ("0", "false", "no")
 
 function parse_output(filepath)
     m_bits = Float64[]
-    texts = String[]
     for line in readlines(filepath)
         m = match(r"^(\d{4}-\d{2}-\d{2})\s+(\d+)\s+([\d.]+)", line)
         m === nothing && continue
         push!(m_bits, parse(Float64, m[3]))
-        i2 = findlast('|', line)
-        i1 = i2 === nothing ? nothing : findprev('|', line, prevind(line, i2))
-        push!(texts, (i1 !== nothing && i2 !== nothing) ? line[nextind(line, i1):prevind(line, i2)] : "")
     end
-    (; m_bits, texts)
-end
-
-function categorize(texts)
-    map(texts) do t
-        HIGHLIGHT_TEXT && startswith(t, "TEXT") && return :text
-        :normal
-    end
+    m_bits
 end
 
 function get_alphabet(db_path)
@@ -88,9 +73,7 @@ function main()
     mkpath(outdir)
 
     println(stderr, "Parsing entropy values...")
-    data = parse_output(infile)
-    actual = data.m_bits
-    cats = categorize(data.texts)
+    actual = parse_output(infile)
     n = length(actual)
     println(stderr, "  $n messages parsed")
 
@@ -121,7 +104,6 @@ function main()
     # Colors (muted, print-friendly)
     blue  = RGBf(0.176, 0.306, 0.525)
     red   = RGBf(0.690, 0.188, 0.133)
-    green = RGBf(0.133, 0.545, 0.271)
     amber = RGBf(0.800, 0.522, 0.000)
     dk    = RGBf(0.25, 0.25, 0.25)
     md    = RGBf(0.50, 0.50, 0.50)
@@ -206,16 +188,17 @@ function main()
     vlines!(ax, [μa], color=(blue, 0.4), linewidth=0.8, linestyle=:dot)
     vlines!(ax, [μr], color=(red, 0.4), linewidth=0.8, linestyle=:dot)
 
-    # Direct labels on distributions
-    text!(ax, μa - 2, peak_a + y_max * 0.06,
+    # Direct labels on distributions — each anchored on the outer side of
+    # its own mean (GPS lower → left, baseline higher → right) so they stay
+    # legible even when the two distributions nearly coincide (as they do on
+    # the corrected corpus)
+    text!(ax, min(μa, μr) - 6, peak_a + y_max * 0.06,
         text="GPS messages (n=$n)\nμ = $(round(μa, digits=1)) bits, σ = $(round(σa, digits=1))",
-        fontsize=14, color=blue, align=(:center, :bottom))
+        fontsize=14, color=blue, align=(:right, :bottom))
 
-    # Position random label to avoid histogram overlap
-    random_label_x = μr < xhi - 15 ? μr : μr - 3
-    text!(ax, random_label_x + 2, peak_r + y_max * 0.12,
+    text!(ax, xhi - 2, peak_r + y_max * 0.12,
         text="Random baseline (n=$n, $n_alpha-symbol alphabet)\nμ = $(round(μr, digits=1)) bits, σ = $(round(σr, digits=1))",
-        fontsize=14, color=red, align=(:center, :bottom))
+        fontsize=14, color=red, align=(:right, :bottom))
 
     # Gap bracket between means (only if distributions are separated)
     if abs(μr - μa) > 3 * max(σa, σr)
@@ -252,23 +235,10 @@ function main()
     linkxaxes!(ax, ax_rug)
     hidexdecorations!(ax, label=true, ticklabels=true, ticks=true, minorticks=true)
 
-    # Batch rug marks by category
-    for (cat, col, lw, m) in [(:normal, (blue, 0.9), 0.3, 0.2),
-                            (:text, (green, 0.9), 1.2, 0.05),
-                            (:outlier, (amber, 0.9), 1.2, 0.05)]
-        xs = [x for (x, c) in zip(actual, cats) if c == cat && x <= cutoff]
-        isempty(xs) && continue
-        segs = [Point2f(x, m) => Point2f(x, 1 - m) for x in xs]
-        linesegments!(ax_rug, segs, color=col, linewidth=lw)
-    end
-
-    # # Minimal rug legend
-    # for (label, col, xfrac) in [("normal", blue, 0.88),
-    #                              ("TEXT", green, 0.93),
-    #                              ("outlier", amber, 0.98)]
-    #     text!(ax_rug, xlo + (xhi - xlo) * xfrac, 0.5,
-    #         text=label, fontsize=7, color=col, align=(:center, :center))
-    # end
+    # One rug mark per message — TEXT messages are not distinguished
+    xs = filter(x -> x <= cutoff, actual)
+    segs = [Point2f(x, 0.2) => Point2f(x, 0.8) for x in xs]
+    linesegments!(ax_rug, segs, color=(blue, 0.9), linewidth=0.3)
 
     rowgap!(fig.layout, 0)
     rowsize!(fig.layout, 2, 25)

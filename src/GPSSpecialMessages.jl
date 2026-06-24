@@ -138,6 +138,10 @@ export word_bits
 export invert_bits
 export parse_how
 export get_sv_id
+export get_sv_id_d30
+export is_d30_complemented_page17
+export confirm_direct_page17
+export tlm_preamble_plausible
 export parse_frame
 export decode_gps_char
 export DATA_BITS_MASK

@@ -16,11 +16,18 @@ data/arrow/
 data/processed/
 data/ops_advisories
 data/messages.duckdb
+data/messages.duckdb.zst
 data/messages.duckdb.wal
 data/messages.duckdb.tmp/
+data/test.duckdb
 data/*.duckdb.old*
+
+# Generated article page (built by article/build.sh / the Pages workflow)
+article/site/
 
 # Editor / scratch
 *.swp
 .idea/
 .vscode/
+wip/
+wip-done/

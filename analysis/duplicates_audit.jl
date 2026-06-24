@@ -27,7 +27,7 @@ using Dates
 using Printf
 
 const DEFAULT_DB = "data/messages.duckdb"
-const OUTPUT_DIR = joinpath(@__DIR__, "reports")
+const OUTPUT_DIR = get(ENV, "REPORTS_DIR", joinpath(@__DIR__, "reports"))
 const REPORT_FILE = joinpath(OUTPUT_DIR, "duplicates_audit.md")
 
 function main()

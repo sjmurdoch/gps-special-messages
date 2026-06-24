@@ -1,10 +1,12 @@
 #!/usr/bin/env julia
 #
-# Verify the five shared-substring pairs (lengths 7–10) found by the
+# Verify the six shared-substring pairs (lengths 7–10) found by the
 # PPM-D order-8 marginal-entropy analysis.
 #
 # Reference: feature-article.md §8 (footnote 40); analysis/reports/
-# marginal_entropy_ppm.txt section "REPEATING SUBSTRINGS".
+# marginal_entropy_ppm.md §5 "Repeating substrings". Five pairs are in
+# the published article; the sixth (7-char HG"2'CA, 2014) emerged from
+# the D30* decoder fix — its partner message was previously skipped.
 #
 # Each substring is asserted to appear in exactly two distinct ascii_messages
 # in the corpus.  We don't re-run PPM-D here (5+ minutes); the SQL `LIKE`
@@ -24,6 +26,7 @@ const PAIRS = [
     ( 9, "LY47IRP16"),
     ( 9, ":U'5PSF8T"),
     ( 9, "ZU°SGZ8PJ"),
+    ( 7, "HG\"2'CA"),
     ( 7, "S°6L.D°"),
 ]
 

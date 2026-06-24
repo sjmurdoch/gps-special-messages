@@ -132,30 +132,35 @@ xlims!(ax, -total_days * 0.01, total_days * 1.005)
 ylims!(ax, 0, 12)
 
 # ── Regime background shading ────────────────────────────────────────────────
-# Era boundaries (CUSUM coordinated change points):
-#   pre-2011  ─ slow regime  : ~1.85 unique msgs/sat/wk → ~3.7 days/msg
-#   2012-2022 ─ fast regime  : ~3.86 unique msgs/sat/wk → ~1.8 days/msg
-#   post-2022 ─ modern slow  : era avg 4.3 days/msg, accelerating to ~6.8 d
-#                              by 2026 as fewer unique messages cycle per week
+# Era boundaries (CUSUM coordinated change points): pre-2011 slow regime,
+# 2012–2022 fast regime, post-2022 modern slow regime. The days/msg labels
+# are computed below as 7 / mean(uniq_msgs/sat/wk) per era; chart-metric,
+# not right-censored, unlike the per-(message, prn) duration in OTAD Test 4.
 regime_b1 = to_days(DateTime(2011, 5, 26))
 regime_b2 = to_days(DateTime(2022, 5, 30))
 
-# Annotate regimes (values: 7 / mean(uniq_msgs/sat/wk) per era; chart-metric,
-# not right-censored, unlike the per-(message, prn) duration in OTAD Test 4)
-text!(ax, regime_b1 / 2, 11.2;
-    text = "Slow regime\n~3.7 days/msg",
+days_per_msg(rows) = round(7.0 / mean(rows.mean_unique_per_prn); digits = 1)
+era_pre    = days_per_msg(fleet[fleet.period_start .< DateTime(2011, 5, 26), :])
+era_fast   = days_per_msg(fleet[DateTime(2011, 5, 26) .<= fleet.period_start .< DateTime(2022, 5, 30), :])
+era_modern = days_per_msg(fleet[fleet.period_start .>= DateTime(2022, 5, 30), :])
+final_year = year(maximum(fleet.period_start))
+era_final  = days_per_msg(fleet[year.(fleet.period_start) .== final_year, :])
+
+label_y = 11.2
+text!(ax, regime_b1 / 2, label_y;
+    text = "Slow regime\n~$(era_pre) days/msg",
     fontsize = 14, align = (:center, :top), color = :gray45)
-text!(ax, (regime_b1 + regime_b2) / 2, 11.2;
-    text = "Fast regime\n~1.8 days/msg",
+text!(ax, (regime_b1 + regime_b2) / 2, label_y;
+    text = "Fast regime\n~$(era_fast) days/msg",
     fontsize = 14, align = (:center, :top), color = :gray45)
-text!(ax, (regime_b2 + total_days) / 2, 11.2;
-    text = "Modern slow regime\n4.3 → 6.8 days/msg",
+text!(ax, (regime_b2 + total_days) / 2, label_y;
+    text = "Modern slow regime\n$(era_modern) → $(era_final) days/msg",
     fontsize = 14, align = (:center, :top), color = :gray45)
 
 # Regime boundary line 1 (2011)
 vlines!(ax, [regime_b1];
     color = RGBAf(0.82, 0.15, 0.08, 0.50), linewidth = 1.5, linestyle = :dash)
-text!(ax, regime_b1 + total_days * 0.005, 11.2;
+text!(ax, regime_b1 + total_days * 0.005, label_y;
     text = "Fleet sentinel flash\n26 May 2011",
     fontsize = 14, align = (:left, :top),
     color = RGBAf(0.82, 0.15, 0.08, 0.80))
@@ -163,7 +168,7 @@ text!(ax, regime_b1 + total_days * 0.005, 11.2;
 # Regime boundary line 2 (2022)
 vlines!(ax, [regime_b2];
     color = RGBAf(0.08, 0.38, 0.75, 0.50), linewidth = 1.5, linestyle = :dash)
-text!(ax, regime_b2 - total_days * 0.005, 11.2;
+text!(ax, regime_b2 - total_days * 0.005, label_y;
     text = "Regime change\nMay 2022",
     fontsize = 14, align = (:right, :top),
     color = RGBAf(0.08, 0.38, 0.75, 0.80))

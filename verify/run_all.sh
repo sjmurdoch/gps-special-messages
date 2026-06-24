@@ -37,11 +37,18 @@ DB="${DB:-${DB_ARG:-data/messages.duckdb}}"
 scripts=(
     corpus_totals
     chi_squared
+    field_capacity
     fleet_flash_2011
     text_migration
     rotation_regimes
+    message_diversity
     shared_substrings
     prn25_timeline
+    sentinel_onset_2011
+    sentinel_event_2020
+    text_inception_2023
+    text_timeline
+    calendar_months
 )
 
 pass=0

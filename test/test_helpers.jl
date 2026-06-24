@@ -148,12 +148,13 @@ function apply_parity_with_d30_complementing!(words::Vector{UInt32})
 end
 
 """
-    make_special_message_frame(message::String; tow::Int=0, alert::Bool=false) -> Vector{UInt8}
+    make_special_message_words(message::String; tow::Int=0, alert::Bool=false) -> Vector{UInt32}
 
-Create a complete Subframe 4, Page 17 frame with the given message.
-Returns 38 bytes of packed navbits with valid parity on all words.
+Build the 10 data words of a Subframe 4, Page 17 frame with the given message.
+Parity is NOT applied; callers apply `apply_parity!` or
+`apply_parity_with_d30_complementing!` as needed.
 """
-function make_special_message_frame(message::String; tow::Int=0, alert::Bool=false)::Vector{UInt8}
+function make_special_message_words(message::String; tow::Int=0, alert::Bool=false)::Vector{UInt32}
     msg_bytes = encode_message_to_bits(message)
 
     # Build 10 words
@@ -200,11 +201,78 @@ function make_special_message_frame(message::String; tow::Int=0, alert::Bool=fal
         end
     end
 
+    return words
+end
+
+"""
+    make_special_message_frame(message::String; tow::Int=0, alert::Bool=false) -> Vector{UInt8}
+
+Create a complete Subframe 4, Page 17 frame with the given message.
+Returns 38 bytes of packed navbits with valid parity on all words.
+"""
+function make_special_message_frame(message::String; tow::Int=0, alert::Bool=false)::Vector{UInt8}
+    words = make_special_message_words(message; tow=tow, alert=alert)
+
     # Apply valid parity to all words
     apply_parity!(words)
 
     return pack_words_to_bytes(words)
 end
+
+"""
+    make_d30_offair_subframe4_frame(sv_id::Int, message::String; tow::Int=0, tlm_d30::Bool=true) -> Vector{UInt8}
+
+Create a Subframe 4 frame with the given SV ID as it appears in a raw off-air
+stream that retains on-air D30* complementing. The TLM word's D30 is forced to
+`tlm_d30`; when 1, the HOW's data bits (including the TOW) are complemented on
+air. The HOW's reserved bits 23-24 are solved so Word 2's transmitted
+D29/D30 = 0, as IS-GPS-200 requires. The message payload occupies the Page 17
+bit positions regardless of SV ID (for non-55 SV IDs it stands in for
+arbitrary page data).
+"""
+function make_d30_offair_subframe4_frame(sv_id::Int, message::String;
+                                         tow::Int=0, tlm_d30::Bool=true)::Vector{UInt8}
+    words = make_special_message_words(message; tow=tow)
+    words[3] = (words[3] & ~(UInt32(0x3F) << 22)) | ((UInt32(sv_id) & 0x3F) << 22)
+
+    # Force TLM D30 to the requested value by toggling reserved data bits
+    # (bit 24, position 6, participates in the D30 parity equation)
+    for k in 0:3
+        cand = (words[1] & ~(UInt32(0x3) << 6)) | (UInt32(k) << 6)
+        if isodd(set_word_parity(cand, false, false)) == tlm_d30
+            words[1] = cand
+            break
+        end
+    end
+    word1 = set_word_parity(words[1], false, false)
+    @assert isodd(word1) == tlm_d30 "Could not force TLM D30 = $tlm_d30"
+
+    # Solve HOW bits 23-24 so Word 2's transmitted D29/D30 = 0
+    d29s = isodd(word1 >> 1)
+    d30s = isodd(word1)
+    for t in 0:3
+        cand = (words[2] & ~(UInt32(0x3) << 6)) | (UInt32(t) << 6)
+        if set_word_parity(cand, d29s, d30s) & 0x3 == 0
+            words[2] = cand
+            break
+        end
+    end
+    @assert set_word_parity(words[2], d29s, d30s) & 0x3 == 0 "Could not solve HOW D29/D30 = 0"
+
+    apply_parity_with_d30_complementing!(words)
+
+    return pack_words_to_bytes(words)
+end
+
+"""
+    make_d30_offair_page17_frame(message::String; tow::Int=0) -> Vector{UInt8}
+
+Create a Subframe 4, Page 17 frame in a D30*-retained stream with TLM D30 = 1.
+This reproduces the stream variant where `parse_how` misreads the complemented
+TOW as frame inversion and Page 17's SV ID reads as the 6-bit complement of 55.
+"""
+make_d30_offair_page17_frame(message::String; tow::Int=0) =
+    make_d30_offair_subframe4_frame(55, message; tow=tow, tlm_d30=true)
 
 """
     make_non_special_frame(subframe_id::Int; tow::Int=0) -> Vector{UInt8}

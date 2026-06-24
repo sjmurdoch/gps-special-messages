@@ -48,7 +48,7 @@ using Printf
 using Statistics
 
 const DB_PATH = length(ARGS) >= 1 ? ARGS[1] : "data/messages.duckdb"
-const OUTPUT_DIR = joinpath(@__DIR__, "reports")
+const OUTPUT_DIR = get(ENV, "REPORTS_DIR", joinpath(@__DIR__, "reports"))
 const REPORT_FILE = joinpath(OUTPUT_DIR, "otad_hypothesis.md")
 
 # ── OTAD Timeline (from Tyley 2015 briefing) ────────────────────────────────
@@ -145,12 +145,41 @@ function test_regime_alignment(db::DuckDB.DB, io::IO)
         println(io, "| $(fmt_date(row.cp_date)) | $(row.metric) | $(row.direction) | $(row.coordinated_prn_count) |")
     end
     println(io)
-    println(io, "The cascade of coordinated change points from January to June 2011")
+    println(io, "The cascade of coordinated change points across the first half of 2011")
     println(io, "is consistent with the phased activation of operational OTAD,")
     println(io, "culminating in the May 26 fleet-wide sentinel flash.")
     println(io)
 
-    return total_matches
+    # Chance-expectation statistics for the concordance summary. Treating
+    # the coordinated CP dates as uniform over the dataset span, window i
+    # (width 2·w+1 days) catches at least one with probability
+    # 1 − (1 − width/span)^n; the exact match-count distribution over the
+    # 7 windows is Poisson-binomial.
+    n_cp_dates = length(unique(cp_df.cp_date))
+    span_days = Int(first(eachrow(query_df(db, """
+        SELECT DATEDIFF('day', MIN(datetime), MAX(datetime)) + 1 AS span
+        FROM special_messages
+    """))).span)
+    p_window = [1.0 - (1.0 - (2 * ev.window_days + 1) / span_days)^n_cp_dates
+                for ev in OTAD_TIMELINE]
+    dist = zeros(length(p_window) + 1)
+    dist[1] = 1.0
+    for p in p_window
+        next = zeros(length(dist))
+        for k in 1:length(dist)
+            next[k] += dist[k] * (1 - p)
+            k < length(dist) && (next[k+1] += dist[k] * p)
+        end
+        dist = next
+    end
+    p_value = sum(dist[(total_matches+1):end])
+
+    return (matches = total_matches,
+            n_cp_dates = n_cp_dates,
+            window_days = sum(2 * ev.window_days + 1 for ev in OTAD_TIMELINE),
+            span_days = span_days,
+            expected = sum(p_window),
+            p_value = p_value)
 end
 
 # ── Test 2: Transition Exercise 7 ────────────────────────────────────────────
@@ -232,13 +261,13 @@ function test_fleet_uniformity(db::DuckDB.DB, io::IO)
     println(io)
 
     # Count how often there are 2+ large groups (each ≥8 PRNs) on the same day
-    multi_group_df = query_df(db, """
+    group_stats(year_predicate) = first(eachrow(query_df(db, """
         WITH daily_groups AS (
             SELECT datetime::DATE as dt,
                    message_hash,
                    COUNT(DISTINCT prn) as prn_count
             FROM special_messages
-            WHERE year >= 2011
+            WHERE $(year_predicate)
             GROUP BY datetime::DATE, message_hash
             HAVING COUNT(DISTINCT prn) >= 8
         ),
@@ -255,9 +284,10 @@ function test_fleet_uniformity(db::DuckDB.DB, io::IO)
             SUM(CASE WHEN num_groups >= 3 THEN 1 ELSE 0 END) as three_plus_group_days,
             COUNT(*) as total_days
         FROM multi_group_days
-    """)
+    """)))
 
-    row = first(eachrow(multi_group_df))
+    row = group_stats("year >= 2011")
+    pre = group_stats("year < 2011")
     println(io, "### Post-2011 daily message group analysis")
     println(io)
     println(io, "A \"group\" is a message shared by ≥8 PRNs on a given day.")
@@ -280,7 +310,11 @@ function test_fleet_uniformity(db::DuckDB.DB, io::IO)
     println(io, "key occupies the special message field at a time.")
     println(io)
 
-    return row.single_group_days, row.two_group_days, row.total_days
+    return (single = row.single_group_days, two = row.two_group_days,
+            total = row.total_days,
+            pre_single = pre.single_group_days,
+            pre_three_plus = pre.three_plus_group_days,
+            pre_total = pre.total_days)
 end
 
 # ── Test 4: Rotation Rate ────────────────────────────────────────────────────
@@ -360,10 +394,11 @@ function test_rotation_rate(db::DuckDB.DB, io::IO)
     end
     println(io)
 
+    modern_avg_days = first(duration_df[startswith.(duration_df.era, "2022"), :avg_days])
     println(io, "**Result**: The operational OTAD era (2012–2021) shows a median message")
     println(io, "duration of approximately 23 hours — consistent with daily key rotation.")
     println(io, "The pre-OTAD era has much longer durations (multi-day), and the modern")
-    println(io, "era (2022+) shows a return to slower rotation (~3–5 day intervals).")
+    println(io, "era (2022+) shows a return to slower rotation (~$(modern_avg_days) days on average).")
     println(io)
 
     return duration_df
@@ -420,54 +455,59 @@ function test_sentinel_transition(db::DuckDB.DB, io::IO)
     println(io)
 
     # Message diversity jump
+    yearly_msgs(y) = first(sentinel_df[sentinel_df.year .== y, :distinct_msgs])
     println(io, "### Message diversity growth across eras")
     println(io)
-    println(io, "The jump from ~86 distinct messages/year (2008) to ~381 (2012) is")
+    println(io, "The jump from $(yearly_msgs(2008)) distinct messages/year (2008) to $(yearly_msgs(2012)) (2012) is")
     println(io, "consistent with the transition from infrequent pre-OTAD key loading")
     println(io, "to automated daily key distribution.")
     println(io)
 
     println(io, "**Result**: Sentinel usage peaks during the OTAD activation year (2011),")
-    println(io, "when 31 PRNs simultaneously entered the all-¬ state on May 26. This is")
+    println(io, "when $(row.prn_count) PRNs simultaneously entered the all-¬ state on May 26. This is")
     println(io, "consistent with a fleet-wide system synchronization event.")
     println(io)
 
-    return sentinel_df
+    return sentinel_df, Int(row.prn_count)
 end
 
 # ── Concordance Summary ──────────────────────────────────────────────────────
 
-function write_concordance(io::IO, t1_matches, t2_exercise_pct, t2_baseline_pct,
-                           t3_single, t3_two, t3_total)
+function write_concordance(io::IO, db::DuckDB.DB, t1, t2_exercise_pct, t2_baseline_pct,
+                           t3, sentinel_df, flash_prns)
     println(io, "## Summary: OTAD Hypothesis Concordance")
     println(io)
     println(io, "| # | Prediction | Expected | Observed | Verdict | Strength |")
     println(io, "|---|---|---|---|---|---|")
 
-    v1 = t1_matches >= 2 ? "CONFIRMED" : "PARTIAL"
-    println(io, "| 1 | Regime change aligns with OTAD timeline | CPs near major OTAD transitions | $(t1_matches)/$(length(OTAD_TIMELINE)) milestones matched (2 major ones) | **$(v1)** | WEAK |")
+    v1 = t1.matches >= 2 ? "CONFIRMED" : "PARTIAL"
+    println(io, "| 1 | Regime change aligns with OTAD timeline | CPs near major OTAD transitions | $(t1.matches)/$(length(OTAD_TIMELINE)) milestones matched | **$(v1)** | WEAK |")
 
     println(io, "| 2 | 2010 exercise distinguishable from baseline | Exercise differs from surrounding months | Exercise $(@sprintf("%.0f", t2_exercise_pct))% vs baseline $(@sprintf("%.0f", t2_baseline_pct))% — indistinguishable | **INCONCLUSIVE** | — |")
 
-    v3 = (t3_single + t3_two) / t3_total >= 0.99 ? "CONFIRMED" : "PARTIAL"
-    no_subgroup_pct = @sprintf("%.1f", 100.0 * (t3_single + t3_two) / t3_total)
+    v3 = (t3.single + t3.two) / t3.total >= 0.99 ? "CONFIRMED" : "PARTIAL"
+    no_subgroup_pct = @sprintf("%.1f", 100.0 * (t3.single + t3.two) / t3.total)
     println(io, "| 3 | No mission constellation sub-grouping on L1 C/A | ≤2 groups always | $(no_subgroup_pct)% days ≤2 groups | **$(v3)** | WEAK |")
 
     println(io, "| 4 | Daily rotation post-OTAD | ~24h median duration | 23h median (2012–2021) | **CONFIRMED** | STRONG |")
 
-    println(io, "| 5 | Sentinel = OTAD placeholder | Sentinel peaks during OTAD activation | 31 PRNs flash on 2011-05-26 | **CONFIRMED** | MODERATE |")
+    println(io, "| 5 | Sentinel = OTAD placeholder | Sentinel peaks during OTAD activation | $(flash_prns) PRNs flash on 2011-05-26 | **CONFIRMED** | MODERATE |")
     println(io)
 
     println(io, "### Strength Assessment")
     println(io)
-    println(io, "**Test 1 — WEAK**: There are 19 coordinated change-point dates across")
-    println(io, "the full dataset. With 7 OTAD events and search windows totalling ~420")
-    println(io, "days out of ~6,800 total days, we expect ~1.2 matches by chance alone.")
-    println(io, "The observed 2 matches are not statistically significant.")
+    sig = t1.p_value < 0.05 ? "statistically significant" : "not statistically significant"
+    println(io, "**Test 1 — WEAK**: There are $(t1.n_cp_dates) coordinated change-point dates across")
+    println(io, "the full dataset. With $(length(OTAD_TIMELINE)) OTAD events and search windows totalling")
+    println(io, "$(t1.window_days) days out of $(t1.span_days) total days, we expect $(@sprintf("%.1f", t1.expected)) matches by")
+    println(io, "chance alone (treating the dates as uniform). The observed $(t1.matches) matches")
+    println(io, "are $(sig) (p ≈ $(@sprintf("%.2f", t1.p_value))).")
     println(io)
+    pre_single_pct = @sprintf("%.0f", 100.0 * t3.pre_single / t3.pre_total)
+    post_single_pct = @sprintf("%.0f", 100.0 * t3.single / t3.total)
     println(io, "**Test 3 — WEAK**: Fleet uniformity (all SVs sharing one message) is")
     println(io, "the baseline behavior in the pre-OTAD era too. The pre-2011 data shows")
-    println(io, "72% single-group days, rising to 96% post-2011. The 15 pre-OTAD days")
+    println(io, "$(pre_single_pct)% single-group days, rising to $(post_single_pct)% post-2011. The $(t3.pre_three_plus) pre-OTAD days")
     println(io, "with 3+ groups are transition artifacts: groups on those days share")
     println(io, "overlapping PRN sets (total PRN appearances far exceed 32), not distinct")
     println(io, "sub-constellations. Since the prediction is already true before OTAD,")
@@ -482,7 +522,7 @@ function write_concordance(io::IO, t1_matches, t2_exercise_pct, t2_baseline_pct,
     println(io, "is low.")
     println(io)
     println(io, "**Test 5 — MODERATE**: The 2011-05-26 fleet flash is a dramatic,")
-    println(io, "real event (31 PRNs entering all-¬ simultaneously). However, the flash")
+    println(io, "real event ($(flash_prns) PRNs entering all-¬ simultaneously). However, the flash")
     println(io, "occurs on May 26 — approximately two months after the stated March 2011")
     println(io, "OTAD start — and sentinel values are not specific to OTAD (they could")
     println(io, "serve any system reset purpose).")
@@ -505,13 +545,49 @@ function write_concordance(io::IO, t1_matches, t2_exercise_pct, t2_baseline_pct,
     println(io)
     println(io, "### OTAD Era Summary")
     println(io)
+
+    # Median per-(message, PRN) duration in days per summary era, mirroring
+    # the Test 4 query (non-sentinel, multi-observation messages only).
+    era_rot_df = query_df(db, """
+        WITH msg_durations AS (
+            SELECT message_hash, prn,
+                   DATEDIFF('hour', MIN(datetime), MAX(datetime)) as duration_hours,
+                   MIN(EXTRACT(YEAR FROM datetime)) as first_year
+            FROM special_messages
+            WHERE entropy > 0  -- exclude sentinels
+            GROUP BY message_hash, prn
+            HAVING DATEDIFF('hour', MIN(datetime), MAX(datetime)) > 0
+        )
+        SELECT
+            CASE
+                WHEN first_year <= 2008 THEN '2007–2008'
+                WHEN first_year <= 2010 THEN '2009–2010'
+                WHEN first_year = 2011 THEN '2011'
+                WHEN first_year <= 2021 THEN '2012–2021'
+                ELSE '2022+'
+            END as era,
+            ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY duration_hours) / 24.0, 1) as median_days
+        FROM msg_durations
+        GROUP BY era
+    """)
+    era_rot = Dict(row.era => row.median_days for row in eachrow(era_rot_df))
+
+    # Distinct messages/year per era from the Test 5 per-year table,
+    # excluding the final (partial) year of the dataset.
+    last_full_year = maximum(sentinel_df.year) - 1
+    function msgs_range(y1, y2)
+        vals = sentinel_df[(sentinel_df.year .>= y1) .& (sentinel_df.year .<= min(y2, last_full_year)), :distinct_msgs]
+        lo, hi = extrema(vals)
+        lo == hi ? "$(lo)" : "$(lo)–$(hi)"
+    end
+
     println(io, "| Era | Period | Rotation Rate | Distinct Msgs/Year | Interpretation |")
     println(io, "|---|---|---|---|---|")
-    println(io, "| Pre-OTAR | 2007–2008 | ~2.3 days | 45–86 | Inactive or manual key loading |")
-    println(io, "| OTAR Testing | 2009–2010 | ~2.0 days | 82–105 | Transition exercises, test keys |")
-    println(io, "| OTAD Activation | 2011 | ~1.5 days | 272 | Fleet synchronization, sentinel flash |")
-    println(io, "| Operational OTAD | 2012–2021 | ~0.9 days | 162–381 | Daily automated key distribution |")
-    println(io, "| Modern Era | 2022–present | ~3.8 days | 75–162 | Slower rotation (OCX? M-code?) |")
+    println(io, "| Pre-OTAR | 2007–2008 | ~$(era_rot["2007–2008"]) days | $(msgs_range(2007, 2008)) | Inactive or manual key loading |")
+    println(io, "| OTAR Testing | 2009–2010 | ~$(era_rot["2009–2010"]) days | $(msgs_range(2009, 2010)) | Transition exercises, test keys |")
+    println(io, "| OTAD Activation | 2011 | ~$(era_rot["2011"]) days | $(msgs_range(2011, 2011)) | Fleet synchronization, sentinel flash |")
+    println(io, "| Operational OTAD | 2012–2021 | ~$(era_rot["2012–2021"]) days | $(msgs_range(2012, 2021)) | Daily automated key distribution |")
+    println(io, "| Modern Era | 2022–present | ~$(era_rot["2022+"]) days | $(msgs_range(2022, 9999)) | Slower rotation (OCX? M-code?) |")
     println(io)
 end
 
@@ -525,8 +601,8 @@ function main()
 
     open(REPORT_FILE, "w") do io
         # Header
-        timestamp = Dates.format(now(), "yyyy-mm-ddTHH:MM:SS")
-        println(io, "<!-- AUTO-GENERATED by analyze_otad_hypothesis.jl on $(timestamp) — do not edit by hand -->")
+        timestamp = Dates.format(now(UTC), dateformat"yyyy-mm-ddTHH:MM:SS") * "Z"
+        println(io, "<!-- AUTO-GENERATED by analysis/otad_hypothesis.jl on $(timestamp) — do not edit by hand -->")
         println(io)
         println(io, "# OTAD Hypothesis Testing Report")
         println(io)
@@ -537,23 +613,23 @@ function main()
 
         # Run all tests
         println("Running Test 1: Regime alignment...")
-        t1_matches = test_regime_alignment(db, io)
+        t1 = test_regime_alignment(db, io)
 
         println("Running Test 2: Transition exercise baseline comparison...")
         t2_exercise_pct, t2_baseline_pct = test_transition_exercise(db, io)
 
         println("Running Test 3: Fleet uniformity...")
-        t3_single, t3_two, t3_total = test_fleet_uniformity(db, io)
+        t3 = test_fleet_uniformity(db, io)
 
         println("Running Test 4: Rotation rate...")
         test_rotation_rate(db, io)
 
         println("Running Test 5: Sentinel transition...")
-        test_sentinel_transition(db, io)
+        sentinel_df, flash_prns = test_sentinel_transition(db, io)
 
         println("Writing concordance summary...")
-        write_concordance(io, t1_matches, t2_exercise_pct, t2_baseline_pct,
-                         t3_single, t3_two, t3_total)
+        write_concordance(io, db, t1, t2_exercise_pct, t2_baseline_pct,
+                         t3, sentinel_df, flash_prns)
     end
 
     close(db)

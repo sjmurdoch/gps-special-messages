@@ -1117,7 +1117,7 @@
             <g>
                 <g class="typst-group">
                     <g>
-                        <path class="typst-shape" fill="none" stroke="#737373" stroke-width="0.7" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" d="M 0 0m 180.19685 0 v 6 c 0 2.7600002 -2.2400055 5 -5 5 h -100.6441 c -2.7600021 0 -5 2.2399998 -5 5 v 6 m 644.32916 -22 v 22 "/>
+                        <path class="typst-shape" fill="none" stroke="#737373" stroke-width="0.7" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" d="M 0 0m 180.19685 0 v 6 c 0 2.7600002 -2.2400055 5 -5 5 h -100.6441 c -2.7600021 0 -5 2.2399998 -5 5 v 6 m 644.32916 -22 v 6 c 0 2.7600002 -2.2399902 5 -5 5 h -25.088196 c -2.7600098 0 -5 2.2399998 -5 5 v 6 "/>
                     </g>
                 </g>
                 <g class="typst-text" transform="matrix(1 0 0 -1 300.8172283464567 15.284)">

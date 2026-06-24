@@ -148,9 +148,7 @@
       box(width: content-w, height: conn-h,
         curve(stroke: s,
           ..branch-curve(top-l, bot-l, conn-h, conn-r, conn-k),
-          // Right side: simple vertical line
-          curve.move((top-r, 0pt)),
-          curve.line((top-r, conn-h)),
+          ..branch-curve(top-r, bot-r, conn-h, conn-r, conn-k),
         )
       )
     )

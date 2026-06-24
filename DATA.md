@@ -10,6 +10,8 @@ All three artefacts live on the project's Zenodo deposit:
 
 The release source tarball is auto-archived by GitHub→Zenodo when a release tag is pushed. The three large data artefacts below are uploaded manually to the same deposit so they share one DOI.
 
+**Dataset versions.** The current deposit version (v2) carries the corrected corpus; the v1 database (12,163,006 observations / 3,994 unique payloads, the numbers in the printed article) was produced by a decoder bug that dropped roughly half of all observations. The full correction record is in [CHANGELOG.md](CHANGELOG.md); v1 numbers remain reproducible from the archived v1 version of the deposit (pin it via `ZENODO_RECORD_ID`, see `bin/fetch_zenodo.sh`). The two raw input archives are unchanged between versions — only the database artefact differs.
+
 `bin/fetch_zenodo.sh` knows about all three artefacts and verifies SHA-256 against the manifest embedded in that script.
 
 ### `gps-navbits-2026-01-26.tar.xz`
@@ -44,23 +46,23 @@ NAVCEN GPS Operational Advisory `.oa1` snapshot (~165 KB compressed → ~32 MB e
 
 ### `messages.duckdb.zst`
 
-Fully-built DuckDB (~190 MB compressed → ~2.8 GB decompressed) consumed by `analysis/`, `figures/`, `verify/`. Reproducible from the two upstream archives by running `pipeline/run_all.sh` then `analysis/run_all.sh`.
+Fully-built DuckDB (~374 MB compressed → ~5.5 GB decompressed) consumed by `analysis/`, `figures/`, `verify/`. Reproducible from the two upstream archives by running `pipeline/run_all.sh` then `analysis/run_all.sh`.
 
 | Field | Value |
 |---|---|
 | Filename on Zenodo | `messages.duckdb.zst` |
-| Build date | 2026-04-12 |
-| Compressed size | 192 MB (201,005,454 bytes); decompresses to 2.8 GB |
+| Build date | 2026-06-21 |
+| Compressed size | 374 MB (392,486,336 bytes); decompresses to 5.5 GB (5,854,998,528 bytes) |
 | zstd level | 19 (max) |
-| SHA-256 (compressed) | `da28b588d7c516479c39822be4820c8658fe9768e20c128ccff132f0346e18a7` |
-| Rows in `special_messages` | 12,163,006 |
-| Unique message hashes | 3,994 |
-| Tables | 11 (`special_messages`, `behavioral_metrics`, `behavioral_change_points`, `change_point_nanu_correlations`, `day_of_week_patterns`, `duplicate_observations`, `identical_duplicates`, `message_durations`, `message_transitions`, `nanu_records`, `sentinel_nanu_correlations`) |
-| Built from | `gps-navbits-2026-01-26.tar.xz` SHA-256 `0b41c9cad…` on 2026-04-12 by `pipeline/run_all.sh` |
+| SHA-256 (compressed) | `e026af8a750e62410729f43f552968ef4e70e22a8c1a18bc8d9ee768762efd2f` |
+| Rows in `special_messages` | 24,087,691 |
+| Unique message hashes | 5,009 |
+| Tables | 11 relations: 8 tables (`special_messages`, `behavioral_metrics`, `behavioral_change_points`, `change_point_nanu_correlations`, `duplicate_observations`, `identical_duplicates`, `nanu_records`, `sentinel_nanu_correlations`) + 3 views (`day_of_week_patterns`, `message_durations`, `message_transitions`) |
+| Built from | `gps-navbits-2026-01-26.tar.xz` SHA-256 `0b41c9cad…` on 2026-06-21 by `pipeline/run_all.sh` + `analysis/run_all.sh` |
 
 ### Identical-duplicate finding
 
-The build pipeline records 17,004 cases where the same `(datetime, prn, message_hash)` triple appears in more than one source `.arrow` file (tracked in the `identical_duplicates` table). These are not pipeline bugs: the GFZ archive contains both an original and a reprocessed version of some daily files (notably days 91–97 of 2008). Analysis confirmed entire 300-bit subframes are byte-for-byte identical between the two copies. The `analysis/duplicates_audit.jl` script recomputes the headline figure from the DB and writes `analysis/reports/duplicates_audit.md`.
+The build pipeline records 19,832 cases where the same `(datetime, prn, message_hash)` triple appears in more than one source `.arrow` file (tracked in the `identical_duplicates` table). These are not pipeline bugs: the GFZ archive contains both an original and a reprocessed version of some daily files (notably days 91–97 of 2008). Analysis confirmed entire 300-bit subframes are byte-for-byte identical between the two copies. The `analysis/duplicates_audit.jl` script recomputes the headline figure from the DB and writes `analysis/reports/duplicates_audit.md`.
 
 There are **zero** conflicting duplicates (same `(datetime, prn)`, different message content). This is evidence against geographic targeting on the L1 C/A special-message field.
 

@@ -4,14 +4,16 @@ abstract: >
   Code, data pipeline, analysis scripts, article figures, and claim-level
   verifiers accompanying Murdoch (2026), "The Empty Field That Wasn't:
   GPS, OTAD, and Two Decades of Encrypted Broadcasts" (Inside GNSS,
-  May/June 2026). Reproduces 12,163,006 special-message observations
-  across 3,994 unique payloads from the GFZ Potsdam navigation-bit
-  archive, 2007-06-19 to 2026-01-23.
+  May/June 2026). Reproduces 24,087,691 special-message observations
+  across 5,009 unique payloads from the GFZ Potsdam navigation-bit
+  archive, 2007-06-19 to 2026-01-23 (the corrected v2 corpus; see
+  CHANGELOG.md for the v1 correction record).
 authors:
   - family-names: Murdoch
     given-names: Steven J.
     email: s.murdoch@ucl.ac.uk
 type: software
+version: 2.0.0
 license: Apache-2.0
 repository-code: "https://github.com/sjmurdoch/gps-special-messages"
 url: "https://github.com/sjmurdoch/gps-special-messages"

@@ -84,9 +84,9 @@ STAGES=(
     "02_extract_nanu|Extract NANU archive into data/ops_advisories/|expect ~6,905 .oa1 files"
     "03_decompress|pipeline/02_decompress.jl: data/raw/ -> data/processed/|expect ~215,000 .nc files"
     "04_arrow|pipeline/03_convert_to_arrow.jl: data/processed/ -> data/arrow/|expect ~5,322 .arrow files"
-    "05_db|pipeline/04_build_database.jl: data/arrow/ -> data/messages.duckdb|expect 12,163,006 rows / 3,994 unique"
+    "05_db|pipeline/04_build_database.jl: data/arrow/ -> data/messages.duckdb|expect 24,087,691 rows / 5,009 unique"
     "06_analysis|analysis/run_all.sh: populate derived tables + reports|expect 11 tables populated, 7 reports written"
-    "07_verify|verify/run_all.sh: claim-level checks|expect 7/7 verifiers pass"
+    "07_verify|verify/run_all.sh: claim-level checks|expect 13/13 verifiers pass"
 )
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -144,8 +144,8 @@ write_status() {
 **Goal**: rebuild \`data/messages.duckdb\` from \`gps-navbits-2026-01-26.tar.xz\` +
 \`nanu-archive-2026-02-26.tar.xz\` and confirm \`verify/run_all.sh\` exits 0.
 
-**Target invariants**: \`SELECT count(*) FROM special_messages\` returns \`12163006\`
-(unique = 3,994), 11 DuckDB tables populated, all 7 verifiers pass.
+**Target invariants**: \`SELECT count(*) FROM special_messages\` returns \`24087691\`
+(unique = 5,009), 11 DuckDB tables populated, all 13 verifiers pass.
 
 | Field | Value |
 |---|---|
@@ -397,8 +397,8 @@ stage_05_db() {
     write_marker "$id" "started_at=$STAGE_STARTED_AT" "duration_seconds=$STAGE_DURATION" \
         "row_count=$row_count" "unique_count=$unique_count"
     if [[ "$MODE" != "smoke" ]]; then
-        if [[ "$row_count" != "12163006" || "$unique_count" != "3994" ]]; then
-            log "ERR: row_count=$row_count unique_count=$unique_count; expected 12163006 / 3994"
+        if [[ "$row_count" != "24087691" || "$unique_count" != "5009" ]]; then
+            log "ERR: row_count=$row_count unique_count=$unique_count; expected 24087691 / 5009"
             STAGE_FAILED=1
             return 1
         fi
@@ -420,9 +420,12 @@ stage_06_analysis() {
     fi
     cd "$WORK_DIR"
     # analysis/run_all.sh treats its first positional as REPO_ROOT and reads
-    # DB / OA_DIR from env. Pass paths via env; do not pass a positional, or
-    # the script will try to `cd` into the .duckdb file.
+    # DB / OA_DIR / REPORTS_DIR from env. Pass paths via env; do not pass a
+    # positional, or the script will try to `cd` into the .duckdb file.
+    # REPORTS_DIR keeps the generated reports in the work dir so a full build
+    # never dirties the repo's tracked analysis/reports/.
     run_stage "$id" env DB="$DATA_DIR/messages.duckdb" OA_DIR="$DATA_DIR/ops_advisories" \
+        REPORTS_DIR="$WORK_DIR/analysis/reports" \
         bash "$REPO_DIR/analysis/run_all.sh" || return $?
     cd - >/dev/null
     write_marker "$id" "started_at=$STAGE_STARTED_AT" "duration_seconds=$STAGE_DURATION"
@@ -504,8 +507,8 @@ write_results() {
             echo "All stages completed successfully."
             echo
             if [[ "$MODE" == "full" ]]; then
-                echo "DB: \`$DATA_DIR/messages.duckdb\` (rows = 12,163,006; unique = 3,994)."
-                echo "Verifiers: 7/7 passed (see \`$LOGS_DIR/07_verify.log\`)."
+                echo "DB: \`$DATA_DIR/messages.duckdb\` (rows = 24,087,691; unique = 5,009)."
+                echo "Verifiers: 13/13 passed (see \`$LOGS_DIR/07_verify.log\`)."
             elif [[ "$MODE" == "smoke" ]]; then
                 echo "Smoke run validated harness end-to-end on \`data/arrow_test/\` fixtures."
                 echo "Stages 01, 02, 03, 06, 07 were skipped (smoke-mode); stages 04+05 ran for real."

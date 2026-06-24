@@ -70,6 +70,7 @@ function create_database(db_path::String; replace::Bool=true)::DuckDB.DB
 
         -- Frame metadata
         alert_flag BOOLEAN NOT NULL,
+        parity_ok BOOLEAN NOT NULL,
         multiplicity INTEGER NOT NULL,
 
         -- File provenance
@@ -285,7 +286,7 @@ function insert_message!(db::DuckDB.DB, msg::DecodedSpecialMessage, meta::FileMe
         ?, ?, ?, ?, ?,
         ?, ?,
         ?, ?, ?,
-        ?, ?,
+        ?, ?, ?,
         ?,
         ?, ?, ?, ?
     )
@@ -305,6 +306,7 @@ function insert_message!(db::DuckDB.DB, msg::DecodedSpecialMessage, meta::FileMe
         msg.raw_bytes,
         hash,
         msg.alert_flag,
+        msg.parity_ok,
         multiplicity,
         meta.source_file,
         stats.is_likely_text,
@@ -422,7 +424,7 @@ function insert_messages!(db::DuckDB.DB,
         ?, ?, ?, ?, ?,
         ?, ?,
         ?, ?, ?,
-        ?, ?,
+        ?, ?, ?,
         ?,
         ?, ?, ?, ?
     )
@@ -458,6 +460,7 @@ function insert_messages!(db::DuckDB.DB,
                 msg.raw_bytes,
                 hash,
                 msg.alert_flag,
+                msg.parity_ok,
                 mult,
                 meta.source_file,
                 stats.is_likely_text,

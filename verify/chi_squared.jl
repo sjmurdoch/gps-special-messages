@@ -2,7 +2,7 @@
 #
 # Verify chi-squared test against the IS-GPS-200 45-symbol alphabet.
 #
-# Reference: feature-article.md §3 (footnote 17): z-score 1.84 over the
+# Reference: feature-article.md §3 (footnote 17): z-score 1.598 over the
 # distribution of distinct ascii_messages, normal approximation to the
 # χ² statistic with df = 44.
 #
@@ -17,7 +17,7 @@ isfile(DB_PATH) || (println(stderr, "Error: '$DB_PATH' not found"); exit(2))
 # IS-GPS-200 special-message alphabet, 45 symbols (including the CP437 °)
 const GPS_CHARS = collect("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+-.'°/: \"")
 
-const Z_EXPECTED = 1.84
+const Z_EXPECTED = 1.598
 const Z_TOL      = 0.01
 
 function main()

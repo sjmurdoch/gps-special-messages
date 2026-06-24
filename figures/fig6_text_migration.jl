@@ -5,10 +5,11 @@
 # A focused, single-panel chart of every TEXT-prefix broadcast event in the
 # corpus.  Each (date, PRN, message) triple is one marker; marker size scales
 # with daily observation count.  Annotated phases:
-#   1. First TEXT message — PRN 8, 13 Dec 2023
-#   2. Multi-PRN distributions — Mar 2024 (10 PRNs), Oct 2024 (4 PRNs)
+#   1. First TEXT messages — fleet-wide, 12–13 Dec 2023 (all 32 PRNs on the 13th)
+#   2. Multi-PRN distributions — Mar 2024 (10 + 9 PRNs), Jul 2024 (9 PRNs),
+#      Oct 2024 (4 PRNs)
 #   3. Daily PRN 1 burst — Dec 2024 → Jan 2025
-#   4. Daily PRN 21 bursts — Mar 2025, Jun 2025
+#   4. Daily PRN 21 bursts — Mar–Apr 2025, Jun 2025
 #   5. Daily PRN 20 burst — Jul–Aug 2025
 #
 # Usage:
@@ -96,21 +97,21 @@ prn_to_y = Dict(p => i for (i, p) in enumerate(active_prns))
 df.y = [prn_to_y[p] for p in df.prn]
 
 # ── Colours: group by broadcast phase ────────────────────────────────────────
-# Phase 1: 2023-12-13 only (inception, PRN 8)
-# Phase 2: 2024-03-18 / 2024-07-31 / 2024-10-10 (multi-PRN distributions)
-# Phase 3: 2024-12-29 → 2025-01-13 (PRN 1 daily)
-# Phase 4: 2025-03-19 → 2025-06-14 (PRN 21 daily)
-# Phase 5: 2025-07-31 → 2025-08-02 (PRN 20 daily)
+# Phase 1: 2023-12-12 / 2023-12-13 (inception; fleet-wide on the 13th)
+# Phase 2: 2024-03-18 / 2024-03-25 / 2024-07-31 / 2024-10-10 (multi-PRN)
+# Phase 3: 2024-12-28 → 2025-01-13 (PRN 1 daily)
+# Phase 4: 2025-03-19 → 2025-04-04 and 2025-06-09 → 2025-06-18 (PRN 21 daily)
+# Phase 5: 2025-07-31 → 2025-08-04 (PRN 20 daily)
 function classify_phase(day::Date, prn::Integer)
-    if day == Date(2023, 12, 13)
+    if day in (Date(2023, 12, 12), Date(2023, 12, 13))
         return :inception
-    elseif day in (Date(2024, 3, 18), Date(2024, 7, 31), Date(2024, 10, 10))
+    elseif day in (Date(2024, 3, 18), Date(2024, 3, 25), Date(2024, 7, 31), Date(2024, 10, 10))
         return :multiprn
-    elseif day >= Date(2024, 12, 29) && day <= Date(2025, 1, 13) && prn == 1
+    elseif day >= Date(2024, 12, 28) && day <= Date(2025, 1, 13) && prn == 1
         return :prn1
-    elseif day >= Date(2025, 3, 19) && day <= Date(2025, 6, 14) && prn == 21
+    elseif day >= Date(2025, 3, 19) && day <= Date(2025, 6, 18) && prn == 21
         return :prn21
-    elseif day >= Date(2025, 7, 31) && day <= Date(2025, 8, 2) && prn == 20
+    elseif day >= Date(2025, 7, 31) && day <= Date(2025, 8, 4) && prn == 20
         return :prn20
     else
         return :other
@@ -135,7 +136,7 @@ df.markersize = marker_size.(df.obs)
 
 # ── Figure ───────────────────────────────────────────────────────────────────
 println("Creating figure...")
-fig = Figure(size = (1150, 540), figure_padding = (50, 25, 30, 20))
+fig = Figure(size = (1150, 680), figure_padding = (50, 25, 30, 20))
 
 ax = Axis(fig[1, 1],
     title      = "TEXT-prefix migration: every broadcast event, December 2023 – August 2025",
@@ -168,38 +169,46 @@ function annotate!(ax, day, prn, txt; align = (:left, :bottom),
         text = txt, fontsize = 14, align = align, color = color)
 end
 
-# 1. First TEXT message
-annotate!(ax, Date(2023, 12, 13), 8,
-    "First TEXT message\nPRN 8 · 13 Dec 2023";
-    align = (:left, :center), offset_x = 12, offset_y = 0.0,
+# 1. First TEXT messages — fleet-wide column on 12–13 Dec 2023; label it at
+# mid-height beside the column rather than at a single PRN. Lifted ~half a
+# line above mid-height so the second line clears the March-2024 markers.
+text!(ax, to_days(Date(2023, 12, 13)) + 12, n_prn * 0.55 + 0.5;
+    text = "First TEXT messages\nall 32 PRNs · 12–13 Dec 2023",
+    fontsize = 14, align = (:left, :center),
     color = PHASE_COLOURS[:inception])
 
-# 2. The 10-PRN distribution event of 2024-03-18
-annotate!(ax, Date(2024, 3, 18), 17,
-    "10-PRN distribution\n18 Mar 2024";
-    align = (:left, :center), offset_x = -90, offset_y = -1.0,
+# 2. The March 2024 distributions (10 PRNs on the 18th, 9 PRNs on the 25th)
+annotate!(ax, Date(2024, 3, 25), 24,
+    "10 + 9 PRNs\n18 & 25 Mar 2024";
+    align = (:left, :center), offset_x = 12, offset_y = 0.5,
     color = PHASE_COLOURS[:multiprn])
 
-# 3. The 4-PRN distribution of 2024-10-10
+# 3. The 9-PRN distribution of 2024-07-31
+annotate!(ax, Date(2024, 7, 31), 25,
+    "9 PRNs\n31 Jul 2024";
+    align = (:left, :center), offset_x = 12, offset_y = 0.8,
+    color = PHASE_COLOURS[:multiprn])
+
+# 4. The 4-PRN distribution of 2024-10-10
 annotate!(ax, Date(2024, 10, 10), 14,
     "4 PRNs\n10 Oct 2024";
     align = (:left, :center), offset_x = -50, offset_y = 1.5,
     color = PHASE_COLOURS[:multiprn])
 
-# 4. PRN 1 daily burst — place ABOVE the markers (PRN 1 sits at y=1, lowest row)
+# 5. PRN 1 daily burst — place ABOVE the markers (PRN 1 sits at y=1, lowest row)
 annotate!(ax, Date(2025, 1, 5), 1,
-    "Daily PRN 1\n29 Dec 2024 → 13 Jan 2025";
+    "Daily PRN 1\n28 Dec 2024 → 13 Jan 2025";
     align = (:center, :bottom), offset_x = 0, offset_y = 0.6,
     color = PHASE_COLOURS[:prn1])
 
-# 5. PRN 21 daily bursts — between the two clusters
+# 6. PRN 21 daily bursts — between the two clusters
 annotate!(ax, Date(2025, 4, 25), 21,
-    "Daily PRN 21\nMar & Jun 2025";
+    "Daily PRN 21\nMar–Apr & Jun 2025";
     align = (:center, :bottom), offset_x = 0, offset_y = 0.6,
     color = PHASE_COLOURS[:prn21])
 
-# 6. PRN 20 daily burst
-annotate!(ax, Date(2025, 8, 1), 20,
+# 7. PRN 20 daily burst
+annotate!(ax, Date(2025, 8, 2), 20,
     "Daily PRN 20\nJul–Aug 2025";
     align = (:left, :center), offset_x = 14, offset_y = 0.0,
     color = PHASE_COLOURS[:prn20])
@@ -222,10 +231,14 @@ for (i, obs) in enumerate([1, 30, max_obs])
         text = string(obs), fontsize = 13, align = (:left, :center), color = :gray45)
 end
 
-# ── Footer note ──────────────────────────────────────────────────────────────
+# ── Footer note (counts computed from the data) ──────────────────────────────
+n_unique  = length(unique(df.ascii_message))
+n_combos  = nrow(unique(df[:, [:day, :prn]]))
+n_obs     = sum(df.obs)
+obs_fmt   = replace(string(n_obs), r"(?<=[0-9])(?=(?:[0-9]{3})+$)" => ",")
 text!(ax, 0, -0.5;
     text = "Each marker is one (PRN, day) broadcast of one TEXT-prefixed message. " *
-           "All 26 unique messages, 38 (PRN, day) combinations, 2,398 total observations.",
+           "All $(n_unique) unique messages, $(n_combos) (PRN, day) combinations, $(obs_fmt) total observations.",
     fontsize = 13, align = (:left, :center), color = :gray45)
 
 # ── Save ─────────────────────────────────────────────────────────────────────

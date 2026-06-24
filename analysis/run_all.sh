@@ -14,6 +14,9 @@
 #   DB      override DB path (default: data/messages.duckdb); takes precedence
 #           over any positional argument.
 #   OA_DIR  override ops-advisory dir (default: data/ops_advisories)
+#   REPORTS_DIR override output dir for the markdown reports (default:
+#           <repo>/analysis/reports). bin/full_build.sh sets this to a work-dir
+#           path so a full build never writes into the tracked repo tree.
 
 set -euo pipefail
 
@@ -31,8 +34,12 @@ cd "$REPO_ROOT"
 JULIA="${JULIA:-julia}"
 DB="${DB:-${DB_ARG:-data/messages.duckdb}}"
 OA_DIR="${OA_DIR:-data/ops_advisories}"
-REPORTS_DIR="analysis/reports"
+# Reports default to the repo's analysis/reports (we just cd'd into REPO_ROOT,
+# so $PWD is its absolute path). full_build.sh overrides REPORTS_DIR to a
+# work-dir path; the analysis scripts read this same env var.
+REPORTS_DIR="${REPORTS_DIR:-$PWD/analysis/reports}"
 mkdir -p "$REPORTS_DIR"
+export REPORTS_DIR
 
 run() {
     echo "==> $*" >&2

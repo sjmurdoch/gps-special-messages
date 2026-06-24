@@ -1,7 +1,7 @@
 #!/usr/bin/env julia
 #
-# Verify TEXT-prefix message migration totals: 26 unique messages, 38
-# (PRN, day) combinations, 2,398 observations.
+# Verify TEXT-prefix message migration totals: 55 unique messages, 122
+# (PRN, day) combinations, 8,248 observations.
 #
 # Reference: feature-article.md §9, Figure 6.
 #
@@ -38,9 +38,9 @@ function main()
         same || (ok = false)
     end
 
-    check("unique TEXT messages",     26,    uniq)
-    check("(PRN, day) combinations",  38,    prn_days)
-    check("total TEXT observations",  2_398, total)
+    check("unique TEXT messages",     55,    uniq)
+    check("(PRN, day) combinations",  122,   prn_days)
+    check("total TEXT observations",  8_248, total)
 
     println(ok ? "\nverify/text_migration: PASS" : "\nverify/text_migration: FAIL")
     exit(ok ? 0 : 1)

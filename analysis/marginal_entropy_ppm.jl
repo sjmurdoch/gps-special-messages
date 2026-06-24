@@ -23,7 +23,7 @@ using Printf
 using Statistics
 
 const DEFAULT_DB  = "data/messages.duckdb"
-const OUTPUT_DIR  = joinpath(@__DIR__, "reports")
+const OUTPUT_DIR  = get(ENV, "REPORTS_DIR", joinpath(@__DIR__, "reports"))
 const REPORT_FILE = joinpath(OUTPUT_DIR, "marginal_entropy_ppm.md")
 
 # Backticks in raw text would break inline code spans inside the Markdown

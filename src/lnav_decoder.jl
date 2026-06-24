@@ -4,6 +4,7 @@
 # GPS LNAV constants
 const SUBFRAME_4 = 4
 const PAGE_17_SV_ID = 55  # SV ID 55 identifies Page 17 in Subframe 4
+const TLM_PREAMBLE = UInt32(0b10001011)  # Word 1 bits 1-8 (IS-GPS-200 §20.3.3.1)
 
 """
     SubframeInfo
@@ -43,11 +44,13 @@ function parse_how(word2::UInt32, expected_tow::Union{Int,Nothing}=nothing)::Sub
     if expected_tow !== nothing
         # TOW in HOW is actual TOW / 6, and represents the TOW at the START of the NEXT subframe
         # So transmitted TOW * 6 - 6 should equal seconds of day mod 604800
-        computed_tow = (Int(tow_raw) * 6 - 6) % 86400
+        # mod, not %: TOW count 0 (frame starting at week rollover) gives
+        # -6, which must wrap to 86394, not stay negative
+        computed_tow = mod(Int(tow_raw) * 6 - 6, 86400)
         if computed_tow != expected_tow
             # Try inverted
             tow_inverted = invert_bits(tow_raw, 17)
-            computed_tow_inv = (Int(tow_inverted) * 6 - 6) % 86400
+            computed_tow_inv = mod(Int(tow_inverted) * 6 - 6, 86400)
             if computed_tow_inv == expected_tow
                 inverted = true
             end
@@ -88,13 +91,98 @@ function get_sv_id(word3::UInt32, inverted::Bool=false)::Int
 end
 
 """
+    get_sv_id_d30(packed::AbstractVector{UInt8}, inverted::Bool) -> Int
+
+Extract the SV ID from Word 3 under the interpretation that the stored stream
+retains on-air D30* complementing: Word 3's data bits are complemented iff the
+stored Word 2's D30 (after frame un-inversion) is 1.
+"""
+function get_sv_id_d30(packed::AbstractVector{UInt8}, inverted::Bool)::Int
+    word2 = extract_word(packed, 2)
+    word3 = extract_word(packed, 3)
+    if inverted
+        word2 = invert_bits(word2, 30)
+        word3 = invert_bits(word3, 30)
+    end
+    if isodd(word2)
+        word3 = xor(word3, DATA_BITS_MASK)
+    end
+    return Int(word_bits(word3, 3, 8))
+end
+
+"""
+    is_d30_complemented_page17(packed::AbstractVector{UInt8}, how_info::SubframeInfo) -> Bool
+
+Detect a Page 17 frame in a stream that retains on-air D30* complementing.
+
+In such streams the TLM word's D30* can complement the HOW's data bits, which
+the TOW check in `parse_how` misreads as frame inversion; `get_sv_id` then
+inverts Word 3's clean SV ID, so 55 reads as its 6-bit complement (8). The same
+complemented reading arises from a polarity-inverted D30* stream whose HOW
+complementing masks the inversion. Both cases are confirmed by re-reading the
+SV ID under the D30* interpretation and checking parity with D30*
+un-complementing (which is invariant to the inversion flag).
+"""
+function is_d30_complemented_page17(packed::AbstractVector{UInt8}, how_info::SubframeInfo)::Bool
+    if get_sv_id_d30(packed, how_info.inverted) != PAGE_17_SV_ID
+        return false
+    end
+    return check_message_parity(packed, how_info.inverted, true)
+end
+
+"""
+    tlm_preamble_plausible(packed::AbstractVector{UInt8}) -> Bool
+
+Check that Word 1 starts with the TLM preamble (10001011) in either polarity.
+
+The TLM word is never D30*-complemented on air — IS-GPS-200 solves each
+subframe's final word so its D29/D30 are 0 — so in any stream variant the
+stored preamble is either the true value or its polarity complement.
+"""
+function tlm_preamble_plausible(packed::AbstractVector{UInt8})::Bool
+    preamble = word_bits(extract_word(packed, 1), 1, 8)
+    return preamble == TLM_PREAMBLE || preamble == (TLM_PREAMBLE ⊻ 0xFF)
+end
+
+"""
+    confirm_direct_page17(packed::AbstractVector{UInt8}, how_info::SubframeInfo) -> Bool
+
+Confirm a Subframe 4 frame whose SV ID reads 55 directly, by re-reading it
+under the stream interpretation that passes parity.
+
+The direct reading can lie in one case: a genuine SV ID 8 page in a
+D30*-retained stream whose TLM D30 is 1. The complemented HOW is misread as
+frame inversion, and un-inverting the (actually clean) Word 3 aliases SV ID
+8 to 55 — the mirror image of the aliasing handled by
+[`is_d30_complemented_page17`](@ref). Parity arbitrates: if the direct
+interpretation passes, the reading stands; if only the D30* interpretation
+passes, the SV ID re-read under it is authoritative and the alias is
+rejected. If neither passes (bit errors), the direct reading is kept when
+the TLM preamble is plausible — preserving legacy behaviour for noisy
+frames, which downstream code flags with `parity_ok = false` — and
+rejected otherwise (multi-error garbage).
+"""
+function confirm_direct_page17(packed::AbstractVector{UInt8}, how_info::SubframeInfo)::Bool
+    if check_message_parity(packed, how_info.inverted, false)
+        return true
+    elseif check_message_parity(packed, how_info.inverted, true)
+        return get_sv_id_d30(packed, how_info.inverted) == PAGE_17_SV_ID
+    else
+        return tlm_preamble_plausible(packed)
+    end
+end
+
+"""
     is_special_message_frame(packed::AbstractVector{UInt8}, seconds_of_day::Union{Int,Nothing}=nothing) -> Bool
 
 Check if the packed navbits represent a Subframe 4, Page 17 frame (Special Message).
 
 Returns true if:
 1. Word 2 indicates Subframe ID = 4
-2. Word 3 indicates SV ID = 55 (Page 17)
+2. Word 3 indicates SV ID = 55 (Page 17) under the parity-verified stream
+   interpretation: a direct read of 55 confirmed by
+   [`confirm_direct_page17`](@ref), or a read of 55's 6-bit complement
+   confirmed by [`is_d30_complemented_page17`](@ref)
 """
 function is_special_message_frame(packed::AbstractVector{UInt8}, seconds_of_day::Union{Int,Nothing}=nothing)::Bool
     word2 = extract_word(packed, 2)
@@ -107,7 +195,16 @@ function is_special_message_frame(packed::AbstractVector{UInt8}, seconds_of_day:
     word3 = extract_word(packed, 3)
     sv_id = get_sv_id(word3, how_info.inverted)
 
-    return sv_id == PAGE_17_SV_ID
+    if sv_id == PAGE_17_SV_ID
+        return confirm_direct_page17(packed, how_info)
+    end
+
+    # A D30*-complemented Page 17 reads as the 6-bit complement of 55
+    if sv_id == Int(PAGE_17_SV_ID ⊻ 0x3F)
+        return is_d30_complemented_page17(packed, how_info)
+    end
+
+    return false
 end
 
 """
@@ -181,13 +278,9 @@ function extract_special_message_bits(packed::AbstractVector{UInt8}, inverted::B
     result = zeros(UInt8, 22)
 
     if d30_uncomp
-        # Word-level path: un-invert entire word, then un-complement D30*
-        word1 = extract_word(packed, 1)
-        if inverted
-            word1 = invert_bits(word1, 30)
-        end
-        prev_D30 = isodd(word1)
-
+        # Word-level path: un-invert entire word, then un-complement D30*.
+        # Word 3 is un-complemented by Word 2's D30; Word 1 is not needed
+        # because D30 is a parity bit, never complemented on air.
         word2 = extract_word(packed, 2)
         if inverted
             word2 = invert_bits(word2, 30)
@@ -297,8 +390,14 @@ function parse_frame(packed::AbstractVector{UInt8}, seconds_of_day::Union{Int,No
         sv_id = get_sv_id(word3, how_info.inverted)
 
         # Map SV ID to page number for Subframe 4
-        if how_info.subframe_id == 4 && sv_id == PAGE_17_SV_ID
-            page_number = 17
+        if how_info.subframe_id == 4
+            if sv_id == PAGE_17_SV_ID && confirm_direct_page17(packed, how_info)
+                page_number = 17
+            elseif sv_id == Int(PAGE_17_SV_ID ⊻ 0x3F) &&
+                   is_d30_complemented_page17(packed, how_info)
+                sv_id = PAGE_17_SV_ID
+                page_number = 17
+            end
         end
     end
 

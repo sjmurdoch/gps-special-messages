@@ -14,8 +14,12 @@
 # Test 4 of the OTAD hypothesis report uses a different metric (per
 # (message, prn) duration = last_seen − first_seen) which understates the
 # post-2022 era because messages from late in the corpus are right-censored.
-# It also makes pre-2011 and post-2022 look similar (3.4 d vs 3.3 d) when
-# the chart shows them visibly distinct (~3.8 d vs ~4.3 d).
+#
+# v1→v2 note: on the corrected (D30*-fixed) corpus the pre-2011 and
+# post-2022 eras are statistically indistinguishable (2.50 d vs 2.31 d);
+# the v1 claim that post-2022 rotates *slower* than pre-2011 is withdrawn,
+# not re-tuned (see CHANGELOG.md). The surviving qualitative claim is that
+# the operational OTAD era rotates markedly faster than both outer eras.
 #
 # Usage:
 #   julia --project verify/rotation_regimes.jl [data/messages.duckdb]
@@ -28,9 +32,9 @@ isfile(DB_PATH) || (println(stderr, "Error: '$DB_PATH' not found"); exit(2))
 
 # (label, year predicate, expected days/msg, tolerance)
 const ERAS = [
-    ("2007–2010 (pre-OTAD)",        "BETWEEN 2007 AND 2010", 3.7, 0.2),
-    ("2012–2021 (operational OTAD)", "BETWEEN 2012 AND 2021", 1.8, 0.1),
-    ("2022+ (modern era)",           ">= 2022",               4.3, 0.5),
+    ("2007–2010 (pre-OTAD)",        "BETWEEN 2007 AND 2010", 2.5,  0.1),
+    ("2012–2021 (operational OTAD)", "BETWEEN 2012 AND 2021", 0.96, 0.05),
+    ("2022+ (modern era)",           ">= 2022",               2.31, 0.1),
 ]
 
 function era_days_per_msg(db, where_predicate)
@@ -59,13 +63,16 @@ function main()
         same || (ok = false)
     end
 
-    # Qualitative claim: post-2022 era rotates *slower* than pre-2011 era.
+    # Qualitative claim (v2): the operational OTAD era rotates markedly
+    # faster (>2×) than both the pre-OTAD and modern eras. The v1 claim
+    # that post-2022 is slower than pre-2011 is withdrawn (CHANGELOG.md).
     pre  = measured["2007–2010 (pre-OTAD)"]
+    oper = measured["2012–2021 (operational OTAD)"]
     post = measured["2022+ (modern era)"]
-    qual_ok = post > pre + 0.2  # at least 0.2 d gap (~5 hours)
+    qual_ok = oper * 2 < pre && oper * 2 < post
     qual_msg = qual_ok ?
-        "[OK]   post-2022 ($(round(post, digits=2)) d) is slower than pre-2011 ($(round(pre, digits=2)) d) by $(round(post - pre, digits=2)) d" :
-        "[FAIL] post-2022 ($(round(post, digits=2)) d) NOT meaningfully slower than pre-2011 ($(round(pre, digits=2)) d)"
+        "[OK]   operational era ($(round(oper, digits=2)) d) rotates >2× faster than pre-2011 ($(round(pre, digits=2)) d) and post-2022 ($(round(post, digits=2)) d)" :
+        "[FAIL] operational era ($(round(oper, digits=2)) d) NOT >2× faster than both pre-2011 ($(round(pre, digits=2)) d) and post-2022 ($(round(post, digits=2)) d)"
     println(qual_msg)
     qual_ok || (ok = false)
 

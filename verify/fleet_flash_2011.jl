@@ -1,7 +1,7 @@
 #!/usr/bin/env julia
 #
 # Verify the 2011-05-26 fleet-wide sentinel flash: 31 PRNs entered the
-# all-¬ (0xAC) sentinel on this day. PRN 1 is absent.
+# all-¬ (0xAA) sentinel on this day. PRN 1 is absent.
 #
 # Reference: feature-article.md §6 (footnote 29).
 #

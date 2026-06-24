@@ -101,11 +101,11 @@ using .StatisticalTests
     end
 
     @testset "birthday_expected_collisions GPS sanity" begin
-        # For 3994 messages, 22-byte alphabet 45, substrings of length 9:
-        # substrings_per_msg = 14, total = 3994*14 = 55916
-        # slots = 45^9 ≈ 1.167e14
-        # lambda = 55916*55915/(2*1.167e14) ≈ 0.0134
-        N = 3994
+        # For 5009 unique messages (v2 corpus), 22-byte alphabet 45, substrings of length 9:
+        # substrings_per_msg = 14, total = 5009*14 = 70126
+        # slots = 45^9 ≈ 7.567e14
+        # lambda = 70126*70125/(2*7.567e14) ≈ 3.2e-6
+        N = 5009
         M = 22
         A = 45
         L = 9

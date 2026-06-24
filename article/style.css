@@ -1,0 +1,202 @@
+/* The Empty Field That Wasn't — article page.
+ *
+ * Layout: a single text column with a right margin channel for
+ * sidenotes on wide screens. Below the wide breakpoint the margin
+ * channel disappears and footnote markers expand their note inline
+ * (see sidenotes.js). With JavaScript disabled, the Pandoc endnote
+ * section at the bottom serves all widths, with bidirectional links.
+ */
+
+:root {
+  --text: #1c1c1c;
+  --muted: #5a5a5a;
+  --accent: #8b1a1a;
+  --rule: #d8d2c7;
+  --paper: #fbfaf7;
+  --note-bg: #f3efe7;
+  --body-width: 42rem;
+  --margin-width: 19rem;
+  --margin-gap: 2.5rem;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 17px; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--text);
+  font-family: Charter, "Bitstream Charter", "Source Serif Pro", Georgia, serif;
+  line-height: 1.55;
+  text-rendering: optimizeLegibility;
+}
+
+main {
+  max-width: calc(var(--body-width) + var(--margin-gap) + var(--margin-width));
+  margin: 0 auto;
+  padding: 0 1.25rem 4rem;
+}
+
+article { max-width: var(--body-width); }
+
+/* ── Site chrome ─────────────────────────────────────────────────── */
+
+.site-nav {
+  max-width: calc(var(--body-width) + var(--margin-gap) + var(--margin-width));
+  margin: 0 auto;
+  padding: 0.8rem 1.25rem;
+  border-bottom: 1px solid var(--rule);
+  font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}
+.site-nav a { color: var(--muted); text-decoration: none; margin-right: 1.2rem; }
+.site-nav a:hover { color: var(--accent); }
+.nav-version {
+  color: var(--accent);
+  font-weight: 600;
+  margin-right: 1.2rem;
+  text-transform: uppercase;
+}
+
+.site-footer {
+  max-width: var(--body-width);
+  margin-top: 3rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* ── Typography ──────────────────────────────────────────────────── */
+
+h1 {
+  font-size: 1.9rem;
+  line-height: 1.2;
+  margin: 2.2rem 0 0.8rem;
+  letter-spacing: -0.01em;
+}
+
+/* Subtitle: the paragraph straight after the H1. */
+h1 + p {
+  font-size: 1.15rem;
+  color: var(--muted);
+  font-style: italic;
+  margin-top: 0;
+}
+
+h2 {
+  font-size: 1.25rem;
+  margin: 2.6rem 0 0.6rem;
+  letter-spacing: -0.005em;
+}
+
+p { margin: 0 0 1rem; }
+
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+
+blockquote {
+  margin: 1.6rem 0;
+  padding: 0.9rem 1.1rem;
+  background: var(--note-bg);
+  border-left: 3px solid var(--accent);
+  font-size: 0.9rem;
+}
+blockquote p { margin: 0; }
+
+ul { padding-left: 1.4rem; }
+li { margin-bottom: 0.45rem; }
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1.6rem auto;
+  border: 1px solid var(--rule);
+  background: #fff;
+  padding: 0.4rem;
+}
+
+code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.84em;
+  background: var(--note-bg);
+  padding: 0.05em 0.25em;
+  border-radius: 3px;
+}
+
+/* ── Footnote markers ────────────────────────────────────────────── */
+
+a.footnote-ref {
+  text-decoration: none;
+  font-weight: 600;
+  padding: 0 0.12em;
+}
+
+/* ── Sidenotes (created by sidenotes.js from the endnote content) ── */
+
+.sidenote { display: none; }
+
+@media (min-width: 1180px) {
+  .sidenotes-on .sidenote {
+    display: block;
+    float: right;
+    clear: right;
+    width: var(--margin-width);
+    margin-right: calc(-1 * (var(--margin-width) + var(--margin-gap)));
+    margin-bottom: 0.9rem;
+    font-size: 0.76rem;
+    line-height: 1.45;
+    color: var(--muted);
+    font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  .sidenote .sn-num {
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .sidenote.sn-target {
+    background: var(--note-bg);
+    outline: 6px solid var(--note-bg);
+  }
+  /* The endnote apparatus is redundant when sidenotes are shown. */
+  .sidenotes-on #notes,
+  .sidenotes-on #notes + p,
+  .sidenotes-on #footnotes { display: none; }
+}
+
+@media (max-width: 1179.98px) {
+  .sidenotes-on .sidenote.expanded {
+    display: block;
+    margin: 0.7rem 0 1rem;
+    padding: 0.7rem 0.9rem;
+    background: var(--note-bg);
+    border-left: 3px solid var(--accent);
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: var(--text);
+  }
+  .sidenotes-on .sidenote .sn-num { font-weight: 700; color: var(--accent); }
+  /* Inline expansion replaces the jump-to-endnotes behavior. */
+  .sidenotes-on #notes,
+  .sidenotes-on #notes + p,
+  .sidenotes-on #footnotes { display: none; }
+}
+
+/* ── Endnotes (no-JS fallback and print) ─────────────────────────── */
+
+#footnotes { font-size: 0.85rem; color: var(--muted); }
+#footnotes hr { border: none; border-top: 1px solid var(--rule); }
+#footnotes li { margin-bottom: 0.7rem; }
+#footnotes li:target {
+  background: var(--note-bg);
+  outline: 6px solid var(--note-bg);
+}
+a.footnote-back { text-decoration: none; margin-left: 0.3em; }
+
+@media print {
+  .site-nav { display: none; }
+  .sidenote { display: none !important; }
+  #notes, #notes + p, #footnotes { display: block !important; }
+  body { background: #fff; }
+}

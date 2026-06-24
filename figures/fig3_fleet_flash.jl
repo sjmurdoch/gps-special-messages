@@ -2,7 +2,7 @@
 #
 # Plot: The 2011-05-26 fleet-wide sentinel flash
 #
-# A 48-hour timeline (one row per PRN) showing the all-¬ (0xAC) sentinel
+# A 48-hour timeline (one row per PRN) showing the all-¬ (0xAA) sentinel
 # entering and exiting across 31 satellites within hours.  Normal messages
 # are shown in muted tones; sentinel periods are highlighted.
 #
@@ -163,7 +163,7 @@ n_prns_flash = length(unique(sentinel_26.prn))
 
 # Positioned well below PRN 1
 text!(ax, 36.0, -0.5;
-    text     = "31 of 32 satellites entered the all-¬ (0xAC) sentinel within hours — no corresponding NANU",
+    text     = "$(n_prns_flash) of 32 satellites entered the all-¬ (0xAA) sentinel within hours — no corresponding NANU",
     fontsize = 14,
     align    = (:center, :bottom),
     color    = :gray35)
@@ -172,7 +172,7 @@ text!(ax, 36.0, -0.5;
 Legend(fig[2, 1],
     [LineElement(color = SENTINEL_COLOR, linewidth = 5),
      LineElement(color = NORMAL_COLOR,   linewidth = 2)],
-    ["All-¬ sentinel (0xAC)", "Normal message"],
+    ["All-¬ sentinel (0xAA)", "Normal message"],
     framevisible = false,
     labelsize = 15,
     padding = (8, 8, 4, 4),

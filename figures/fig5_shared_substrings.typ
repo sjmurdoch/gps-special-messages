@@ -7,7 +7,7 @@
 //   typst compile plot_shared_substrings.typ analysis_output/shared_substrings.png --ppi 300
 //   typst compile plot_shared_substrings.typ analysis_output/shared_substrings.pdf
 
-#set page(width: 240mm, height: 180mm, margin: 12mm)
+#set page(width: 240mm, height: 238mm, margin: 12mm)
 #set text(font: "Helvetica Neue", size: 9pt, fill: rgb("333333"))
 #show math.equation: set text(font: "Helvetica Neue")
 
@@ -52,22 +52,40 @@
     prn2:   "30"
   ),
   (
-    label:  "Group A — 8 shared characters, 3 weeks apart",
+    label:  "Group A — 9 shared characters, 3 weeks apart",
     msg1:   "2CK0E6:U'5PSF8TJ90FDX'",
     msg2:   "Q°5HY1:U'5PSF8T78J97IY",
     date1:  "2019-12-11",
     date2:  "2019-11-20",
-    prn1:   "1",
+    prn1:   "31",
     prn2:   "31"
   ),
   (
-    label:  "Group C — 7 + 4 shared characters, 4 days apart",
+    label:  "Group C — 9 + 4 shared characters, 3 days apart",
     msg1:   "43PA :ZU°SGZ8PJDL-:IM ",
     msg2:   ": 2NKMZU°SGZ8PJEGB:IM ",
     date1:  "2024-04-07",
-    date2:  "2024-04-11",
-    prn1:   "3",
-    prn2:   "3"
+    date2:  "2024-04-10",
+    prn1:   "32",
+    prn2:   "32"
+  ),
+  (
+    label:  "Group E — 7 shared characters, 3 months apart",
+    msg1:   "E.YS/ZBC8P\"NX-3HG\"2'CA",
+    msg2:   "K\"4YC5TL5-U59THHG\"2'CA",
+    date1:  "2014-08-28",
+    date2:  "2014-11-26",
+    prn1:   "32",
+    prn2:   "32"
+  ),
+  (
+    label:  "Group F — 7 + 1 shared characters, 3 months apart",
+    msg1:   "\"9EI1HF6\"°MIS°6L.D°SZB",
+    msg2:   "VLV5GK'0V9M7S°6L.D°F'H",
+    date1:  "2019-06-19",
+    date2:  "2019-09-14",
+    prn1:   "31",
+    prn2:   "32"
   ),
 )
 
@@ -94,7 +112,7 @@
         (char-cell(ch, matches.at(i)),)
       }
     ),
-    align(horizon, box(width: prn-w, text(size: 8pt, fill: text-mid, [PRN #prn]))),
+    align(horizon, box(width: prn-w, text(size: 8pt, fill: text-mid, [#prn PRNs]))),
   )
 }
 

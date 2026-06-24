@@ -2,7 +2,7 @@
 
 Two paths through the repository, depending on what you want to reproduce.
 
-- **Fast path** — verify every quantitative claim against the published database. ~190 MB download, ~1 minute of compute.
+- **Fast path** — verify every quantitative claim against the published database. ~380 MB download, ~1 minute of compute.
 - **Full path** — rebuild the database from raw GFZ + NAVCEN archives, then verify. ~7 GB download, ~250 GB intermediate disk, hours of compute.
 
 Both paths end with `verify/run_all.sh` exiting 0.
@@ -31,18 +31,18 @@ git clone https://github.com/sjmurdoch/gps-special-messages
 cd gps-special-messages
 julia --project -e 'using Pkg; Pkg.instantiate()'
 
-# Download the pre-built DuckDB from Zenodo (~190 MB compressed → ~2.8 GB decompressed).
+# Download the pre-built DuckDB from Zenodo (~380 MB compressed → ~5.5 GB decompressed).
 # bin/fetch_zenodo.sh verifies SHA-256 against the manifest in DATA.md.
 bin/fetch_zenodo.sh messages.duckdb
 
-# Run all 7 claim-level verifiers.
+# Run all 13 claim-level verifiers.
 verify/run_all.sh
 ```
 
 Expected output (last lines):
 
 ```
-Verifier summary: 7 / 7 passed
+Verifier summary: 11 / 11 passed
 All verifiers passed.
 ```
 
@@ -76,7 +76,7 @@ julia --project -e '
 using DuckDB
 db = DuckDB.DB("data/messages.duckdb"; readonly=true)
 n  = (DBInterface.execute(db, "SELECT COUNT(*) AS n FROM special_messages") |> first).n
-@assert n == 12_163_006 "expected 12,163,006 rows; got $n"
+@assert n == 24_087_691 "expected 24,087,691 rows; got $n"
 println("OK: ", n, " rows")'
 
 # Step 6 — populate analysis tables and write reports.
@@ -96,14 +96,14 @@ verify/run_all.sh
 | `01_download_navbits` | (URLs) | `data/raw/` | skip if `bin/fetch_zenodo.sh navbits` already populated `data/raw/` |
 | `02_decompress` | `data/raw/` | `data/processed/` (~136 GB intermediate NetCDF) | |
 | `03_convert_to_arrow` | `data/processed/` | `data/arrow/` (~31 GB) | uses all CPU cores via `julia -t auto` |
-| `04_build_database` | `data/arrow/` | `data/messages.duckdb` (~3 GB) | extracts SF4 P17, writes 11 tables |
+| `04_build_database` | `data/arrow/` | `data/messages.duckdb` (~5.5 GB) | extracts SF4 P17, writes 11 tables |
 | `05_download_ops_advisories` | (URLs) | `data/ops_advisories/` | skip if `bin/fetch_zenodo.sh nanu` already ran |
 
 `analysis/run_all.sh` is idempotent — its first step deletes the analysis-table contents in foreign-key-safe order, then repopulates. Re-running against an already-populated `messages.duckdb` works.
 
 ### Unattended rebuild with `bin/full_build.sh`
 
-`bin/full_build.sh` runs all seven stages of the full path (extract navbits → extract NANU → decompress → arrow → db → analysis → verify) end-to-end with one command, in a hermetic work directory outside the repo. It is resumable across restarts and writes per-stage markers and logs. On the full corpus a complete run takes ~11h 20m wall and ends with 12,163,006 rows / 3,994 unique / 7-of-7 verifiers passing.
+`bin/full_build.sh` runs all seven stages of the full path (extract navbits → extract NANU → decompress → arrow → db → analysis → verify) end-to-end with one command, in a hermetic work directory outside the repo. It is resumable across restarts and writes per-stage markers and logs. The complete seven-stage path takes ~19.4 h wall end-to-end (measured 2026-06-20→21: extract+decompress ~19 min, arrow ~5.9 h, db ~13 h, analysis+verify ~13 min). The database-build stage is the long pole: the corrected decoder recovers roughly twice as many frames as v1 and runs a parity retry on D30\*-retained streams. It ends with 24,087,691 rows / 5,009 unique / 13-of-13 verifiers passing.
 
 **Prerequisite — stage the raw archives.** Download both files from the [Zenodo deposit](https://doi.org/10.5281/zenodo.20073222) into `$ARCHIVE_DIR` (default: a sibling directory `../gps-special-messages-release/` next to the repo) under their original filenames:
 
@@ -156,10 +156,10 @@ kill -0 $(cat /tmp/full_build.pid)                          # process alive chec
 | `data/processed/` | ~136 GB | — |
 | `data/arrow/` | ~31 GB | — |
 | `data/ops_advisories/` | ~32 MB | optional |
-| `data/messages.duckdb` | ~3 GB | ~3 GB |
+| `data/messages.duckdb` | ~5.5 GB | ~5.5 GB |
 | `~/.julia/` (deps) | ~3 GB | ~3 GB |
 | `figures/output/` (committed) | ~3 MB | ~3 MB |
-| Total | ~180 GB | ~6 GB |
+| Total | ~185 GB | ~9 GB |
 
 The intermediate `data/processed/` and `data/arrow/` directories can be deleted after `pipeline/04_build_database.jl` produces `data/messages.duckdb`.
 

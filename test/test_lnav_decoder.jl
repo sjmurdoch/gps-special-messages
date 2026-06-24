@@ -25,6 +25,34 @@
         @test info.tow == 12345
     end
 
+    @testset "week rollover (TOW count 0)" begin
+        # The subframe starting Saturday 23:59:54 carries TOW count 0 (the
+        # count names the NEXT subframe start, which is the week epoch), so
+        # tow*6-6 = -6 must wrap to seconds-of-day 86394, not stay negative.
+        tow = 0
+        sod = 86394
+        msg = "WEEK ROLLOVER TEST   ."
+
+        # Clean stream, true polarity: identified
+        frame = make_special_message_frame(msg; tow=tow)
+        @test is_special_message_frame(frame, sod) == true
+        @test parse_how(extract_word(frame, 2), sod).inverted == false
+
+        # Clean stream, inverted polarity: inversion must still be detected
+        frame_inv = map(~, frame)
+        how_inv = parse_how(extract_word(frame_inv, 2), sod)
+        @test how_inv.inverted == true
+        @test is_special_message_frame(frame_inv, sod) == true
+        decoded = decode_frame(frame_inv, Int32(sod), 5, 2024, 100)
+        @test decoded.parity_ok == true
+        @test decoded.raw_bytes == encode_message_to_bits(msg)
+
+        # D30*-retained stream with complemented HOW: the inverted-TOW
+        # match must also wrap correctly
+        frame_d30 = make_d30_offair_page17_frame(msg; tow=tow)
+        @test is_special_message_frame(frame_d30, sod) == true
+    end
+
     @testset "get_sv_id" begin
         # Test SV ID extraction
         for sv_id in [1, 25, 32, 51, 55, 56, 63]
@@ -108,6 +136,10 @@
 
         # Create a frame with known patterns
         words = fill(UInt32(0), 10)
+
+        # Word 1: TLM preamble (identification of unverifiable frames —
+        # this one carries no parity — requires a plausible preamble)
+        words[1] = UInt32(0b10001011) << 22
 
         # Word 2: Set subframe ID to 4 (bits 20-22 = 100)
         words[2] = make_how_word(4)
@@ -219,5 +251,170 @@
         decoded = decode_frame(d30_frame, Int32(0), 5, 2024, 100)
         @test decoded.parity_ok == true
         @test startswith(decoded.ascii_message, rstrip(test_msg))
+    end
+
+    @testset "D30*-complemented Page 17 identification" begin
+        test_msg = "D30 PAGE17 IDENT TEST "
+        tow = 100
+        sod = (tow * 6 - 6) % 86400  # seconds_of_day matching the HOW
+
+        frame = make_d30_offair_page17_frame(test_msg; tow=tow)
+
+        # Guard: the synthetic frame reproduces the real failure mode — the
+        # complemented HOW is misread as frame inversion and the clean SV ID
+        # 55 then reads as its 6-bit complement
+        how_info = parse_how(extract_word(frame, 2), sod)
+        @test how_info.subframe_id == 4
+        @test how_info.inverted == true
+        @test get_sv_id(extract_word(frame, 3), how_info.inverted) == 8
+
+        # Recovery: SV ID under the D30* interpretation reads 55 and parity
+        # confirms, so the frame is identified
+        @test get_sv_id_d30(frame, how_info.inverted) == 55
+        @test is_d30_complemented_page17(frame, how_info) == true
+        @test is_special_message_frame(frame, sod) == true
+
+        # parse_frame reports the corrected SV ID and page number
+        info = parse_frame(frame, sod)
+        @test info.subframe_id == 4
+        @test info.sv_id == 55
+        @test info.page_number == 17
+
+        # decode_frame extracts the original message
+        decoded = decode_frame(frame, Int32(sod), 5, 2024, 100)
+        @test decoded.parity_ok == true
+        @test decoded.sv_id == 55
+        @test startswith(decoded.ascii_message, rstrip(test_msg))
+
+        # Without seconds_of_day the complemented HOW also corrupts the
+        # subframe ID read (4 -> 3), so identification requires the TOW
+        # context — which the extraction pipeline always provides
+        @test is_special_message_frame(frame) == false
+
+        # Negative control: a clean Subframe 4 frame with a genuine SV ID 8
+        # must not be identified as Page 17
+        words = Vector{UInt32}(undef, 10)
+        words[1] = UInt32(0b10001011) << 22
+        words[2] = make_how_word(4)
+        words[3] = make_word3_subframe4(8)
+        for i in 4:10
+            words[i] = UInt32(0)
+        end
+        apply_parity!(words)
+        frame_sv8 = pack_words_to_bytes(words)
+        @test is_special_message_frame(frame_sv8) == false
+        @test parse_frame(frame_sv8).page_number === nothing
+        @test parse_frame(frame_sv8).sv_id == 8
+    end
+
+    @testset "SV ID 8 aliased to 55 by complemented HOW" begin
+        # The mirror image of the previous testset: in a D30*-retained
+        # stream with TLM D30 = 1, the complemented HOW is misread as frame
+        # inversion, and un-inverting a genuine SV ID 8 page's clean Word 3
+        # makes its SV ID read 55. The direct reading must be overruled by
+        # the parity-verified D30* interpretation, which reads the true 8.
+        tow = 200
+        sod = (tow * 6 - 6) % 86400
+        frame_sv8 = make_d30_offair_subframe4_frame(8, "NOT A SPECIAL MESSAGE."; tow=tow)
+
+        # Guard: the aliasing is real — the direct read says Page 17
+        how_info = parse_how(extract_word(frame_sv8, 2), sod)
+        @test how_info.subframe_id == 4
+        @test how_info.inverted == true
+        @test get_sv_id(extract_word(frame_sv8, 3), how_info.inverted) == 55
+
+        # The parity-verified D30* interpretation reads the true SV ID
+        @test get_sv_id_d30(frame_sv8, how_info.inverted) == 8
+        @test confirm_direct_page17(frame_sv8, how_info) == false
+        @test is_special_message_frame(frame_sv8, sod) == false
+        @test parse_frame(frame_sv8, sod).page_number === nothing
+
+        # Genuine Page 17 frames in D30*-retained streams keep identifying
+        # through the direct branch when TLM D30 = 0 (Word 3 arrives clean,
+        # SV ID reads 55 directly, the D30* interpretation agrees)
+        msg = "REAL SPECIAL MESSAGE "
+        frame_p17 = make_d30_offair_subframe4_frame(55, msg; tow=tow, tlm_d30=false)
+        how_p17 = parse_how(extract_word(frame_p17, 2), sod)
+        @test how_p17.inverted == false
+        @test get_sv_id(extract_word(frame_p17, 3), how_p17.inverted) == 55
+        @test confirm_direct_page17(frame_p17, how_p17) == true
+        @test is_special_message_frame(frame_p17, sod) == true
+        decoded = decode_frame(frame_p17, Int32(sod), 5, 2024, 100)
+        @test decoded.parity_ok == true
+        @test decoded.raw_bytes == encode_message_to_bits(msg)
+
+        # And a genuine SV ID 8 page with TLM D30 = 0 reads 8 directly and
+        # is rejected on the complement branch (D30* re-read still says 8)
+        frame_sv8_clean_how = make_d30_offair_subframe4_frame(8, "ALSO NOT A MESSAGE   ."; tow=tow, tlm_d30=false)
+        @test is_special_message_frame(frame_sv8_clean_how, sod) == false
+    end
+
+    @testset "unverifiable frames: legacy fallback gated on TLM preamble" begin
+        tow = 300
+        sod = (tow * 6 - 6) % 86400
+        msg = "NOISY FRAME TEST     ."
+        frame = make_special_message_frame(msg; tow=tow)
+
+        # One flipped payload bit fails parity under both interpretations,
+        # but the frame is still accepted (legacy behaviour for noisy
+        # clean-stream frames) and flagged parity_ok = false
+        noisy = copy(frame)
+        noisy[19] ⊻= 0x10  # a Word 5 data bit
+        how_info = parse_how(extract_word(noisy, 2), sod)
+        @test check_message_parity(noisy, how_info.inverted, false) == false
+        @test check_message_parity(noisy, how_info.inverted, true) == false
+        @test is_special_message_frame(noisy, sod) == true
+        @test decode_frame(noisy, Int32(sod), 5, 2024, 100).parity_ok == false
+
+        # If the TLM preamble is also implausible, the frame is rejected
+        garbage = copy(noisy)
+        garbage[1] = 0x00  # preamble bits, neither 0x8B nor its complement
+        @test tlm_preamble_plausible(garbage) == false
+        @test is_special_message_frame(garbage, sod) == false
+
+        # A complemented preamble (inverted stream) is plausible
+        @test tlm_preamble_plausible(map(~, frame)) == true
+
+        # A corrupted preamble alone does not reject a frame whose parity
+        # verifies — the gate applies only to the unverifiable fallback
+        preamble_only = copy(frame)
+        preamble_only[1] = 0x00
+        @test is_special_message_frame(preamble_only, sod) == true
+        @test decode_frame(preamble_only, Int32(sod), 5, 2024, 100).parity_ok == true
+    end
+
+    @testset "stream-state round-trip matrix" begin
+        # Page 17 frames must identify and decode in every stream variant:
+        # clean (D30* removed) vs D30*-retained, true vs inverted polarity,
+        # and (for D30*-retained, where it changes the identification
+        # branch) TLM D30 = 0 vs 1. Message content is varied to exercise
+        # different D30 patterns through the parity chain.
+        det_msg(i) = String([Char(0x20 + mod(11 * i + 7 * j, 95)) for j in 1:22])
+
+        function check_roundtrip(frame, msg, sod; label)
+            @test is_special_message_frame(frame, sod)
+            decoded = decode_frame(frame, Int32(sod), 5, 2024, 100)
+            @test decoded.parity_ok
+            @test decoded.raw_bytes == encode_message_to_bits(msg)
+        end
+
+        for i in 1:10
+            msg = det_msg(i)
+            tow = 400 + 50 * i
+            sod = tow * 6 - 6
+
+            # Clean stream, both polarities
+            clean = make_special_message_frame(msg; tow=tow)
+            check_roundtrip(clean, msg, sod; label="clean/true")
+            check_roundtrip(map(~, clean), msg, sod; label="clean/inverted")
+
+            # D30*-retained stream: TLM D30 = 0 (direct branch) and
+            # TLM D30 = 1 (complement branch), both polarities
+            for tlm_d30 in (false, true)
+                d30 = make_d30_offair_subframe4_frame(55, msg; tow=tow, tlm_d30=tlm_d30)
+                check_roundtrip(d30, msg, sod; label="d30/true/tlm=$tlm_d30")
+                check_roundtrip(map(~, d30), msg, sod; label="d30/inverted/tlm=$tlm_d30")
+            end
+        end
     end
 end

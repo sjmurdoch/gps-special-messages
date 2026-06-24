@@ -7,7 +7,7 @@
 # Available artefacts (set in the table below; SHA-256 values are filled in
 # at release time and live in DATA.md):
 #
-#   messages.duckdb     fully-built DuckDB (~190 MB compressed → ~2.8 GB)
+#   messages.duckdb     fully-built DuckDB (~374 MB compressed → ~5.5 GB)
 #   navbits             frozen GFZ navbit snapshot (~7 GB)
 #   nanu                NAVCEN OA archive (~165 KB compressed → ~32 MB)
 #
@@ -70,7 +70,7 @@ resolve_zenodo_base() {
 # SHA-256 placeholders are TBD-on-release; populate from DATA.md.
 manifest() {
     cat <<'EOF'
-messages.duckdb|messages.duckdb.zst|da28b588d7c516479c39822be4820c8658fe9768e20c128ccff132f0346e18a7|data/messages.duckdb|zstd -d -o data/messages.duckdb
+messages.duckdb|messages.duckdb.zst|e026af8a750e62410729f43f552968ef4e70e22a8c1a18bc8d9ee768762efd2f|data/messages.duckdb|zstd -d -o data/messages.duckdb
 navbits|gps-navbits-2026-01-26.tar.xz|0b41c9cad323b6f55e497eb4555af42b24e621723347690531f302297992f25c|data|tar -xJf
 nanu|nanu-archive-2026-02-26.tar.xz|58e1816719ea83db4d55ad9154e855c42b3c7bbb614554851dd8fde77de674f8|data|tar -xJf
 EOF
