@@ -6,7 +6,7 @@ Code, data pipeline, analysis, figures, and claim-level verifiers for **"The Emp
 
 The 22-byte "special message" field of GPS LNAV Subframe 4, Page 17 has been broadcast on every operational satellite for nineteen years. This repository extracts those messages from the GFZ Potsdam navigation-bit archive, builds a queryable DuckDB database (24,087,691 observations, 5,009 unique payloads, 2007-06-19 → 2026-01-23), and reproduces every quantitative claim and figure in the article.
 
-> **Corrected (v2) corpus.** The printed May/June 2026 article reports 12,163,006 observations / 3,994 unique payloads — numbers produced by a decoder bug that silently dropped every observation from NAVBIT streams retaining on-air D30* complementing, roughly half the corpus. This repository now reproduces the corrected corpus; the full v1 → v2 correction record, including withdrawn claims, is in [CHANGELOG.md](CHANGELOG.md).
+> **Corrected (v2) corpus.** The printed May/June 2026 article reports 12,163,006 observations / 3,994 unique payloads — numbers produced by a decoder bug that silently dropped every observation from NAVBIT streams retaining on-air D30* complementing, roughly half the corpus. This repository now reproduces the corrected corpus; the full v1 → v2 correction record, including withdrawn claims, is in [CHANGELOG.md](CHANGELOG.md). The corrected and expanded article, incorporating detailed footnotes for verification, can be found on the [GitHub Pages site](https://sjmurdoch.github.io/gps-special-messages/).
 
 ## Quickstart
 
