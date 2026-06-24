@@ -25,7 +25,7 @@ pipeline/   raw archives  → data/messages.duckdb
 analysis/   DB            → derived tables in DB + analysis/reports/*.md
 figures/    DB + reports  → figures/output/*.{png,pdf}
 verify/     DB            → exit code (0 ⇔ all claims hold)
-article/    Markdown source + figures → article/site/ (GitHub Pages page)
+article/    Markdown source + figures → article/site/ (GitHub Pages page) + the-empty-field-that-wasnt.pdf (print)
 src/        the GPSSpecialMessages module (parsers, decoders, DB writer)
 test/       unit tests (913 without data/ops_advisories; grows with the OA set)
 bin/        fetch_zenodo.sh, full_build.sh
@@ -34,9 +34,11 @@ data/       arrow_test/ committed; everything else fetched or rebuilt
 
 Each bucket reads from the previous and writes to a well-known output.
 Per-bucket entry points: `pipeline/run_all.sh`, `analysis/run_all.sh`,
-`figures/build_all.sh`, `verify/run_all.sh`, `article/build.sh`. End-to-end:
-`bin/full_build.sh` chains everything; designed to run unattended
-(see top of script for nohup invocation).
+`figures/build_all.sh`, `verify/run_all.sh`, `article/build.sh` (web page) and
+`article/build-pdf.sh` (print PDF). End-to-end: `bin/full_build.sh` chains
+everything (its final stage, `08_article`, renders the PDF; it skips gracefully
+when pandoc/xelatex are absent); designed to run unattended (see top of script
+for nohup invocation).
 
 When a researcher asks where new code goes, follow the DAG: a new
 quantitative claim → `verify/`; a new derived metric → `analysis/`; a
@@ -93,6 +95,7 @@ is **not** verified (Cairo embeds timestamps; visual review only).
 |---|---|
 | Tests | `julia --project test/runtests.jl` (~30 s, expect 913/913 without `data/ops_advisories/`; with it the count grows with the OA file set — all must pass) |
 | Article page | `article/build.sh` (Pandoc → `article/site/index.html`; deployed by `.github/workflows/pages.yml` on push) |
+| Article PDF | `article/build-pdf.sh` (Pandoc → xelatex → `article/the-empty-field-that-wasnt.pdf`; bottom-of-page footnotes, gitignored output) |
 | Pipeline smoke | `julia --project pipeline/04_build_database.jl data/arrow_test/ data/test.duckdb` (~10 s, 3,712 msgs / 2 unique) |
 | Fast verify | `bin/fetch_zenodo.sh messages.duckdb && verify/run_all.sh data/messages.duckdb` |
 | Full unattended rebuild | `nohup bin/full_build.sh > /dev/null 2>&1 &` then `cat $WORK_DIR/_build/STATUS.md` |

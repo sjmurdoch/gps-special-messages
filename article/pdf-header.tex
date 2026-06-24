@@ -1,0 +1,52 @@
+% Header-includes for the article PDF build (xelatex via pandoc).
+% Typography, footnote placement, captions, and the version callout box.
+
+% --- A few math/operator glyphs are absent from the STIX Two Text *text*
+%     face; render them from LaTeX's math fonts so no extra font is needed.
+\usepackage{textcomp}
+\usepackage{newunicodechar}
+\newunicodechar{≈}{\ensuremath{\approx}}
+\newunicodechar{≥}{\ensuremath{\geq}}
+\newunicodechar{√}{\ensuremath{\surd}}
+\newunicodechar{→}{\ensuremath{\rightarrow}}
+\newunicodechar{⌈}{\ensuremath{\lceil}}
+\newunicodechar{⌉}{\ensuremath{\rceil}}
+\newunicodechar{ᵢ}{\ensuremath{_{i}}}
+
+% --- Footnotes: pin to the bottom of the page, tidy rule, slightly smaller.
+\usepackage[bottom]{footmisc}
+\setlength{\footnotesep}{0.7\baselineskip}
+\renewcommand{\footnoterule}{%
+  \kern-3pt \hrule width 2in height 0.4pt \kern 2.6pt}
+\renewcommand{\footnotelayout}{\setstretch{1.0}}
+
+% --- Sans-serif, lightly spaced section headings for a modern look.
+\usepackage{titlesec}
+\titleformat*{\section}{\large\bfseries\sffamily}
+\titleformat*{\subsection}{\normalsize\bfseries\sffamily}
+\titlespacing*{\section}{0pt}{1.6ex plus 1ex minus .2ex}{0.8ex plus .2ex}
+
+% --- Figure captions: keep the author's "Figure N." text, drop LaTeX's own
+%     "Figure N:" auto-label (which would otherwise double the number).
+\usepackage{caption}
+\captionsetup{font=small, labelformat=empty, labelsep=none,
+              justification=raggedright, singlelinecheck=false}
+
+% --- Render the leading version note as a subtle shaded callout.
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\definecolor{calloutbg}{HTML}{F4F2EC}
+\definecolor{calloutbar}{HTML}{8A7A4F}
+\definecolor{linkblue}{HTML}{1A4C8B}  % referenced by hyperref (loaded later)
+\renewenvironment{quote}
+  {\begin{tcolorbox}[breakable, enhanced, boxrule=0pt, frame hidden,
+      colback=calloutbg, borderline west={3pt}{0pt}{calloutbar},
+      left=12pt, right=10pt, top=8pt, bottom=8pt,
+      before skip=10pt, after skip=10pt]\small}
+  {\end{tcolorbox}}
+
+% --- Title block: a little breathing room.
+\usepackage{titling}
+\setlength{\droptitle}{-2.2em}
+\pretitle{\begin{center}\LARGE\bfseries}
+\posttitle{\par\end{center}\vspace{0.3em}}

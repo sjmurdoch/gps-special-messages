@@ -87,6 +87,7 @@ STAGES=(
     "05_db|pipeline/04_build_database.jl: data/arrow/ -> data/messages.duckdb|expect 24,087,691 rows / 5,009 unique"
     "06_analysis|analysis/run_all.sh: populate derived tables + reports|expect 11 tables populated, 7 reports written"
     "07_verify|verify/run_all.sh: claim-level checks|expect 13/13 verifiers pass"
+    "08_article|article/build-pdf.sh: render the article to PDF|expect the-empty-field-that-wasnt.pdf (skipped if pandoc/xelatex absent)"
 )
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -453,6 +454,31 @@ stage_07_verify() {
     write_marker "$id" "started_at=$STAGE_STARTED_AT" "duration_seconds=$STAGE_DURATION"
 }
 
+# ── Stage 08: article PDF ─────────────────────────────────────────────────────
+# Data-independent capstone: renders article/the-empty-field-that-wasnt.md plus
+# the committed figures to PDF via pandoc + xelatex. Runs in every mode (it does
+# not touch the rebuilt DB). Skips gracefully — not a failure — when the LaTeX
+# toolchain is absent, so a data-pipeline-only host still completes a build.
+# Output goes under $WORK_DIR so an unattended build never dirties the repo.
+
+stage_08_article() {
+    local id="08_article"
+    if [[ "$(stage_state "$id")" == "done" ]]; then
+        log "stage $id already done; skipping"; return 0
+    fi
+    if ! command -v pandoc >/dev/null || ! command -v xelatex >/dev/null; then
+        write_marker "$id" "skipped=true" "skipped_reason=pandoc/xelatex not installed"
+        log "stage $id: skipped (pandoc and/or xelatex not found on PATH)"
+        return 0
+    fi
+    local out="$WORK_DIR/article/the-empty-field-that-wasnt.pdf"
+    mkdir -p "$(dirname "$out")"
+    run_stage "$id" env ARTICLE_PDF="$out" bash "$REPO_DIR/article/build-pdf.sh" || return $?
+    local size; size=$(wc -c < "$out" 2>/dev/null | tr -d ' ' || echo 0)
+    write_marker "$id" "started_at=$STAGE_STARTED_AT" "duration_seconds=$STAGE_DURATION" \
+        "pdf_bytes=$size" "pdf_path=$out"
+}
+
 # ── Final results ───────────────────────────────────────────────────────────
 
 write_results() {
@@ -480,7 +506,7 @@ write_results() {
             marker="$(marker_for "$id")"
             local kvs="-"
             if [[ -s "$marker" ]]; then
-                kvs="$(grep -E '^(row_count|unique_count|nc_file_count|arrow_file_count|yearly_tar_count|oa1_file_count|skipped_reason)=' "$marker" 2>/dev/null | paste -sd, - || echo -)"
+                kvs="$(grep -E '^(row_count|unique_count|nc_file_count|arrow_file_count|yearly_tar_count|oa1_file_count|pdf_bytes|skipped_reason)=' "$marker" 2>/dev/null | paste -sd, - || echo -)"
                 [[ -z "$kvs" ]] && kvs="-"
             fi
             local wall="-"
@@ -509,9 +535,11 @@ write_results() {
             if [[ "$MODE" == "full" ]]; then
                 echo "DB: \`$DATA_DIR/messages.duckdb\` (rows = 24,087,691; unique = 5,009)."
                 echo "Verifiers: 13/13 passed (see \`$LOGS_DIR/07_verify.log\`)."
+                echo "Article PDF: \`$WORK_DIR/article/the-empty-field-that-wasnt.pdf\` (skipped if pandoc/xelatex absent)."
             elif [[ "$MODE" == "smoke" ]]; then
                 echo "Smoke run validated harness end-to-end on \`data/arrow_test/\` fixtures."
-                echo "Stages 01, 02, 03, 06, 07 were skipped (smoke-mode); stages 04+05 ran for real."
+                echo "Stages 01, 02, 03, 06, 07 were skipped (smoke-mode); stages 04 + 05 ran for real,"
+                echo "as did stage 08 (article PDF) when the LaTeX toolchain was present."
                 echo "The full run (\`bin/full_build.sh\` with no flags) exercises the same harness on the full archive."
             fi
         fi
@@ -544,6 +572,9 @@ check_prereqs() {
         if [[ "${avail_gb:-0}" -lt 250 ]]; then
             log "WARN: only ${avail_gb}GB free at $WORK_DIR (recommend 250GB)"
         fi
+    fi
+    if ! command -v pandoc >/dev/null || ! command -v xelatex >/dev/null; then
+        log "NOTE: pandoc and/or xelatex not on PATH — stage 08_article will be skipped"
     fi
     log "prereqs ok"
 }

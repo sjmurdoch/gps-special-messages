@@ -24,6 +24,8 @@ data/*.duckdb.old*
 
 # Generated article page (built by article/build.sh / the Pages workflow)
 article/site/
+# Generated article PDF (built by article/build-pdf.sh)
+article/the-empty-field-that-wasnt.pdf
 
 # Editor / scratch
 *.swp
