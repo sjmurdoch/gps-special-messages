@@ -105,26 +105,6 @@ advisory files are present (e.g. 1,057 with the source-repo symlink as
 of June 2026). Either fetch via `bin/fetch_zenodo.sh nanu` or symlink
 from the source repo.
 
-## Transitional state — D30* extraction bug (June 2026)
-
-**Remove this section once the v1→v2 transition completes.**
-
-A decoder bug (since fixed) silently skipped every special message in NAVBIT streams that retain on-air D30* complementing — roughly half of all observations. A from-raw rebuild with the fixed decoder yields **24,087,691 observations / 5,009 unique** vs the published v1 numbers **12,163,006 / 3,994**. Decision (2026-06-11): publish a v2 Zenodo dataset and an updated article with a tracked `CHANGELOG.md`. The repo-side flip is complete: every doc, script, and manifest describes v2, and the v2 article is published (2026-06-13). **Decision (2026-06-15): the repo cites the Zenodo concept DOI only** (`10.5281/zenodo.20073222`, which auto-resolves to the latest version), so there are **no per-version DOI fill-ins** — the dataset upload is deferred to last and the concept DOI points to it once it lands. What remains is off-repo: the Zenodo upload (last step) and the v2 release date; everything in-repo is done.
-
-Status as of 2026-06-12:
-
-- Already on v2 (committed): figure scripts and outputs, `analysis/otad_hypothesis.jl`, the regenerated `analysis/reports/*.md`, the `verify/` constants, **CLAIMS.md** (v2 values, keyed to the article's footnote numbering), and **CHANGELOG.md** (the v1→v2 value corrections and withdrawn claims; the v2 release date is the only remaining TBD — the concept-DOI strategy removed the version-DOI placeholders, 2026-06-15). `verify/run_all.sh` passes 13/13 against a freshly rebuilt DB but **fails against the v1 Zenodo DB** until the v2 dataset is uploaded — expected, not a regression. The v1 `rotation_regimes` qualitative claim (post-2022 slower than pre-2011) was falsified by the corrected data; the verifier and CLAIMS.md now assert the surviving claim (operational era >2× faster than both outer eras), withdrawal recorded in `CHANGELOG.md`.
-- Also on v2 (2026-06-12): **all remaining docs** — README, REPRODUCING.md, DATA.md, CITATION.cff (version 2.0.0), `bin/full_build.sh` invariants, `bin/fetch_zenodo.sh` manifest, and the `test/test_statistical_significance.jl` worked example. Nothing pins v1 anymore; every doc describes the v2 artefact, which is prepared locally but **not yet on Zenodo**.
-- Consequence until the upload lands: `bin/fetch_zenodo.sh messages.duckdb` downloads the v1 artefact and now **fails the SHA-256 check** (the manifest carries the v2 hash) — expected, not a regression. The quickstart fast path works end-to-end only after the §1 upload.
-
-Next steps, in order (full file-and-line detail in `wip/d30_remaining_work.md`):
-
-1. ~~Add verifiers for the newly cited findings~~ — done 2026-06-12: `verify/sentinel_onset_2011.jl`, `verify/sentinel_event_2020.jl`, `verify/text_inception_2023.jl`, and `verify/calendar_months.jl` (the calendar-month claim's new home). Two more added 2026-06-15 — `verify/message_diversity.jl` (per-year unique-message diversity) and `verify/text_timeline.jl` (the TEXT migration timeline) — so the suite is now 13 verifiers.
-2. **(Last step.)** Upload the prepared `data/messages.duckdb.zst` (zstd -19; size + SHA-256 already recorded in DATA.md and the fetch manifest) to Zenodo as a new version of the deposit. The repo cites the concept DOI throughout, so **no DOI fill-ins follow** — the concept DOI auto-resolves to the new upload. Afterwards confirm `bin/fetch_zenodo.sh messages.duckdb && verify/run_all.sh` passes end-to-end and set the v2 release date in `CHANGELOG.md`. Raw `navbits`/`nanu` artefacts are unchanged and not re-uploaded.
-3. ~~Re-pin the remaining v1 docs~~ — done 2026-06-12; all docs now describe v2 (TODO details in `wip/d30_remaining_work.md` §1). Outstanding remnant: re-measure the end-to-end full-build wall time (REPRODUCING currently says the DB stage alone took ~11 h and the total is not re-timed).
-4. Validate end-to-end (`bin/full_build.sh` or at minimum `verify/run_all.sh`): 13/13 confirmed against the local v2 DB on 2026-06-15. Remove this section once the upload (step 2) lands.
-5. ~~v2 article~~ — done 2026-06-13: imported, corrected with the full §7a audit applied, footnotes numbered 1..57 (the printed article had none), CLAIMS.md keyed to them, and the GitHub Pages build landed (`article/build.sh`, margin sidenotes, Actions deploy). Remaining (optional, non-blocking): enable Pages (source = GitHub Actions) in the repo settings. Under the 2026-06-15 strategy the docs reference the article by its tracked source + `article/build.sh`/Pages build, not a hard URL, so the live-URL fill-ins are no longer required. Inside GNSS will not run an erratum or updated article (2026-06-12); the page presents itself as a new version of the original.
-
 ## GPS terminology gotchas
 
 - **`prn` (1–32) ≠ `sv_id` (always 55)**. The PRN is the satellite that
@@ -192,8 +172,8 @@ deeper detail see IS-GPS-200N §20.3.3.5.1.8 (linked from DATA.md).
 - **`pipeline/04_build_database.jl` row count is a load-bearing
   invariant.** With the fixed decoder the full-corpus build produces
   24,087,691 rows / 5,009 unique, now pinned by the verifiers (the
-  published v1 article says 12,163,006 / 3,994 — see the Transitional
-  state section above). The 2026-06-11 identification hardening
+  published v1 article says 12,163,006 / 3,994 — see `CHANGELOG.md`).
+  The 2026-06-11 identification hardening
   (week-rollover TOW wrap, aliased-SV-ID-8 rejection, TLM-preamble gate
   on parity-unverifiable frames) may shift a from-raw rebuild count
   marginally from those numbers. If a refactor changes the count away
